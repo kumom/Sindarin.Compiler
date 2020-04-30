@@ -1,7 +1,7 @@
 <template>
     <li class="treeview" :class="{'treeview__expand': expand}">
         <div ref="root" v-if="root" class="treeview__root">
-            <component :is="root.$component || defaultComponent"
+            <component :is="root._component || defaultComponent"
                 v-bind="(typeof root == 'string') ? {text: root} : root" />
         </div>
         <ul ref="children" v-if="children && children.length">

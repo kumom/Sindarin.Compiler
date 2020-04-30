@@ -21,7 +21,39 @@ html, body {
     overflow: auto;
 }
 
+/* Editor stuff */
+
 #ide .CodeMirror {
     background-color: #eee;
     height: 100%;
+}
+
+#ide .CodeMirror .highlight {
+    background-color: #9acd3266;
+}
+
+/* AST stuff */
+
+.treeview .token {
+    display: block;
+}
+
+.treeview .token:hover {
+    background-color: #9acd3233;
+}
+
+.treeview .token.mnemonic .text {
+    display: none;
+}
+
+.treeview .token .text {
+    font-size: 85%;
+    font-family: Courier, monospace;
+}
+
+.treeview .token .type {
+    font-size: 80%;
+    border: 1px solid #888;
+    border-radius: 3px;
+    padding: 0 2px;
 }
