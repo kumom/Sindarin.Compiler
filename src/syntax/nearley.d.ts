@@ -1,10 +1,11 @@
 declare module 'nearley' {
 
     interface Lexer {
-        next();
-        reset(...args);
-        formatError(...args);
-        save(...args);
+        next(): Token
+        save(): any
+        reset(chunk: any, info: any): void
+        formatError(token: Token, message?: string): string
+        has(name: string): boolean
     }
 
     type Grammar = { };
@@ -19,4 +20,5 @@ declare module 'nearley' {
         finish(): ParseResult
         feed(input: string | Token[]): void
     }
+
 }
