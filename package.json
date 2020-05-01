@@ -6,6 +6,7 @@
         "@types/codemirror": "0.0.91",
         "codemirror": "^5.53.2",
         "nearley": "^2.19.2",
+        "vis-metapkg": "file:src/vis",
         "vue": "^2.6.11",
         "vue-hot-reload-api": "^2.3.4"
     },

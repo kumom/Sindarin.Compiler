@@ -21,6 +21,10 @@ html, body {
     overflow: auto;
 }
 
+#ide .panel > div {
+    height: 100%;
+}
+
 /* Editor stuff */
 
 #ide .CodeMirror {

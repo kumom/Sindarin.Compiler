@@ -279,6 +279,7 @@ declarator
 
 direct_declarator
 	: IDENTIFIER
+	| TYPE_NAME
 	| '(' declarator ')'
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list ']'

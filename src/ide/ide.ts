@@ -1,28 +1,34 @@
 import CodeMirror from 'codemirror';
 import 'codemirror/mode/clike/clike';
 import 'codemirror/lib/codemirror.css';
-import Vue from 'vue';
 
 import { Parser } from '../syntax/parser';
 
-import { treeview, nonreactive } from './components';
 import './ide.css';
+import { AstPanel } from './panels/ast-panel';
 
 
 
 class IDE {
 
     editor: CodeMirror.Editor
-    tree: Vue
+    panels: {ast: AstPanel}
 
     constructor() {
         this.editor = CodeMirror(document.querySelector('#editor'), {
             lineNumbers: true
         });
-        this.tree = new Vue(treeview);
-        var pane = document.createElement('div');
-        document.querySelector('#output').append(pane);
-        this.tree.$mount(pane);
+        this.panels = {
+            ast: this.addPanel(new AstPanel())
+        }
+    }
+
+    addPanel<A extends {$el: Element}>(panel: A): A {
+        var div = document.createElement('div');
+        div.classList.add('panel');
+        document.querySelector('#ide').append(div);
+        div.append(panel.$el);
+        return panel;
     }
 
     async open(url: string) {
@@ -30,22 +36,9 @@ class IDE {
         this.editor.swapDoc(new CodeMirror.Doc(await r.text(), 'text/x-c'));
     }
 
-    pass(parser: Parser) {
-        var doc = this.editor.getDoc(),
-            program = this.editor.getValue(),
-            ast = parser.parse(program)[0];
-        function aux(ast: any[] & {type: string} | {}) {
-            if (Array.isArray(ast))
-                return {root: ast.type, children: ast.map && ast.map(aux)};
-            else
-                return {root: {_component: 'token', at: pos(ast), ...ast}};
-        }
-        function pos(token) {
-            return nonreactive(new CodeRange(
-                {doc, line: token.line, col: token.col},
-                {doc, line: token.line, col: token.col + token.text.length}));
-        }
-        this.tree.$props.children = [aux(ast)];
+    parse(parser: Parser) {
+        var doc = this.editor.getDoc();
+        this.panels.ast.parse(doc, parser);
     }
 
 }
@@ -78,4 +71,4 @@ class CodeRange {
 
 
 
-export { IDE }
+export { IDE, CodePosition, CodeRange }
