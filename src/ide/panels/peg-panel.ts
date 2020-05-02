@@ -1,15 +1,20 @@
+import Vue from 'vue';
+import Component from 'vue-class-component';
+
 import { Network } from 'vis-metapkg';
 import { Hypergraph } from '../../analysis/hypergraph';
 
 
-class PegPanel {
+
+@Component
+class PegPanel extends Vue {
 
     $el: HTMLDivElement
     peg: Hypergraph
     network: Network
 
-    constructor() {
-        this.$el = document.createElement('div');
+    render(createElement) {
+        return createElement('div');
     }
 
     show(peg: Hypergraph) {
@@ -21,6 +26,10 @@ class PegPanel {
         var cpanel = new PegConfigPanel();
         cpanel.show(this.network);
         return cpanel;
+    }
+
+    static install() {
+        Vue.component('ide-panel-peg', this);
     }
 
 }

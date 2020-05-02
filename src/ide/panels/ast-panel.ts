@@ -1,26 +1,27 @@
-import { EventEmitter } from 'events';
 import Vue from 'vue';
+import Component from 'vue-class-component';
 import CodeMirror from 'codemirror';
 
 import { Parser } from '../../syntax/parser';
 
 import { treeview, nonreactive } from '../components';
-import { CodeRange } from '../ide';
+import { CodeRange } from './editor-panel';
 
 
 
-class AstPanel extends EventEmitter {
+@Component
+class AstPanel extends Vue {
 
     $el: Element
     tree: Vue
     ast: Ast
+    
+    render(createElement) {
+        return createElement(treeview, {children: []});
+    }
 
-    constructor() {
-        super();
-        this.tree = new Vue(treeview);
-        this.tree.$mount();
-        this.$el = this.tree.$el;
-
+    mounted() {
+        this.tree = this.$children[0];
         this.tree.$on('action', (ev: TreeViewActionEvent) => this.action(ev));
     }
 
@@ -39,7 +40,7 @@ class AstPanel extends EventEmitter {
                 {doc, line: token.line, col: token.col},
                 {doc, line: token.line, col: token.col + token.text.length}));
         }
-        this.tree.$props.children = [aux(ast)];        
+        this.tree.$props.children.splice(0, Infinity, aux(ast));
     }
 
     parse(doc: CodeMirror.Doc, parser: Parser) {
@@ -51,8 +52,12 @@ class AstPanel extends EventEmitter {
     action(ev: TreeViewActionEvent) {
         switch (ev.type) {
             case 'peg':
-                this.emit('action:peg', {ast: ev.target.ast}); break;
+                this.$emit('action:peg', {ast: ev.target.ast}); break;
         }
+    }
+
+    static install() {
+        Vue.component('ide-panel-ast', this);
     }
 
 }

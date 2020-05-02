@@ -10,6 +10,8 @@ class Hypergraph {
     edges: Hypergraph.Edge[] = [];
     vlabels: Map<Hypergraph.Vertex, string> = new Map;
 
+    _max: Hypergraph.Vertex = 0
+
     constructor() {
     }
 
@@ -21,8 +23,23 @@ class Hypergraph {
         return v;
     }
 
+    add(edges: Hypergraph.Edge[]) {
+        var vmap = new Map<Hypergraph.Vertex, Hypergraph.Vertex>(),
+            get = (u: Hypergraph.Vertex) => {
+                if (u > 0) return u;
+                var v = vmap.get(u);
+                if (!v) { v = this._fresh(); vmap.set(u, v); }
+                return v;
+            };
+        for (let e of edges) {
+            e.target = get(e.target);
+            e.sources = e.sources.map(get);
+            this.edges.push(e);
+        }
+    }
+
     fromAst(ast: Ast) {
-        var self = this, c: Hypergraph.Vertex = 0;
+        var self = this, c: Hypergraph.Vertex = this._max;
         function aux(ast: Ast) {
             var root = ++c;
             if (Array.isArray(ast)) {
@@ -35,7 +52,12 @@ class Hypergraph {
             return root;
         }
         aux(ast);
+        this._max = c;
         return this;
+    }
+
+    _fresh() {
+        return ++this._max;
     }
 
     toVis() {
