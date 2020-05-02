@@ -12,6 +12,7 @@ class AstPanel {
 
     $el: Element
     tree: Vue
+    ast: Ast
 
     constructor() {
         this.tree = new Vue(treeview);
@@ -20,6 +21,7 @@ class AstPanel {
     }
 
     show(ast: Ast, doc?: CodeMirror.Doc) {
+        this.ast = ast;
         function aux(ast: Ast) {
             if (Array.isArray(ast))
                 return {root: ast.type, children: ast.map && ast.map(aux)};

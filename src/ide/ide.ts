@@ -6,28 +6,28 @@ import { Parser } from '../syntax/parser';
 
 import './ide.css';
 import { AstPanel } from './panels/ast-panel';
+import { PegPanel } from './panels/peg-panel';
 
 
 
 class IDE {
 
     editor: CodeMirror.Editor
-    panels: {ast: AstPanel}
+    panels: {ast?: IDE.Panel<AstPanel>, peg?: IDE.Panel<PegPanel>}
 
     constructor() {
         this.editor = CodeMirror(document.querySelector('#editor'), {
             lineNumbers: true
         });
         this.panels = {
-            ast: this.addPanel(new AstPanel())
+            ast: this.addPanel(new AstPanel()),
+            peg: this.addPanel(new PegPanel())
         }
     }
 
-    addPanel<A extends {$el: Element}>(panel: A): A {
-        var div = document.createElement('div');
-        div.classList.add('panel');
-        document.querySelector('#ide').append(div);
-        div.append(panel.$el);
+    addPanel<A extends {$el: Element}>(content: A) {
+        var panel = new IDE.Panel(content);
+        document.querySelector('#ide').append(panel.$el);
         return panel;
     }
 
@@ -38,7 +38,7 @@ class IDE {
 
     parse(parser: Parser) {
         var doc = this.editor.getDoc();
-        this.panels.ast.parse(doc, parser);
+        this.panels.ast.content.parse(doc, parser);
     }
 
 }
@@ -65,6 +65,23 @@ class CodeRange {
         if (this._mark) {
             this._mark.clear();
             this._mark = undefined;
+        }
+    }
+}
+
+
+namespace IDE {
+    export class Panel<A extends {$el: Element}> {
+        content: A
+        $el: HTMLDivElement
+        constructor(content: A) {
+            this.content = content;
+            this.$el = document.createElement('div');
+            this.$el.classList.add('panel');
+            this.$el.append(content.$el);
+        }
+        hide() {
+            this.$el.classList.add('ide__hidden');
         }
     }
 }

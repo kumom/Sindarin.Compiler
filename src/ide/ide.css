@@ -25,6 +25,10 @@ html, body {
     height: 100%;
 }
 
+#ide .panel.ide__hidden {
+    display: none;
+}
+
 /* Editor stuff */
 
 #ide .CodeMirror {

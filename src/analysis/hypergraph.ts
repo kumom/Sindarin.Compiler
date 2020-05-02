@@ -1,5 +1,6 @@
 import * as uuid from 'uuid';
 import * as vis from 'vis-metapkg';
+import { Ast } from '../ide/panels/ast-panel';
 
 
 Object.assign(window, {vis});
@@ -9,7 +10,6 @@ class Hypergraph {
     edges: Hypergraph.Edge[] = [];
 
     constructor() {
-        this.edges.push(new Hypergraph.Edge("+", [1,2], 3));
     }
 
     get nodes() {
@@ -18,6 +18,20 @@ class Hypergraph {
             for (let u of e.incident)
                 v.add(u);
         return v;
+    }
+
+    fromAst(ast: Ast) {
+        var self = this, c: Hypergraph.Vertex = 0;
+        function aux(ast: Ast) {
+            var root = ++c;
+            if (Array.isArray(ast)) {
+                var subs = ast.map(aux);
+                self.edges.push(new Hypergraph.Edge("*", subs, root));
+            }
+            return root;
+        }
+        aux(ast);
+        return this;
     }
 
     toVis() {
@@ -69,24 +83,49 @@ namespace Hypergraph {
         }
     }
 
-    const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 0}},
-          TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
-          FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1};
-
 }
+
+const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 0}},
+      TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
+      FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
+      HIE = {
+          hierarchical: {
+              direction: 'DU',
+              sortMethod: 'directed'
+          }
+      },
+      PHY = {
+          physics: {
+              enabled: true,
+              solver: 'repulsion',
+              minVelocity: 4,
+              timestep: 1
+          }
+      };
+
 
 
 class Network {
 
     data: vis.Data
-    options: vis.Options = {}
+    options: vis.Options = {
+        layout: {
+            improvedLayout: false,
+            ...HIE
+        },
+        interaction: {
+            zoomSpeed: 0.3
+        },
+        ...PHY
+    };
 
     constructor(data: vis.Data) {
         this.data = data;
     }
 
     render(on: HTMLElement) {
-        return new vis.Network(on, this.data, this.options);
+        var network = new vis.Network(on, this.data, this.options);
+        return network;
     }
 
 }

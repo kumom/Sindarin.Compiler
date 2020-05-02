@@ -16,9 +16,12 @@ function main() {
         await ide.open('/data/bincnt.c');
         ide.parse(parser);
 
-        var peg = new PegPanel();
-        ide.addPanel(peg);
-        peg.show(new Hypergraph());
+        //ide.panels.ast.hide();
+
+        ide.panels.peg.content.show(
+            new Hypergraph().fromAst(ide.panels.ast.content.ast));
+
+        //ide.addPanel(ide.panels.peg.content.showConfig());
 
         Object.assign(window, {ide});
     })    
