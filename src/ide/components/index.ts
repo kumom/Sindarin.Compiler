@@ -9,6 +9,10 @@ Vue.component('treeview', treeview);
 import token from './token.vue';
 Vue.component('token', token);
 
+// @ts-ignore
+import termInner from './term-inner.vue';
+Vue.component('term-inner', termInner);
+
 import nonreactive from './nonreactive';
 
 

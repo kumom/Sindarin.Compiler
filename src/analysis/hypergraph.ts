@@ -8,6 +8,7 @@ Object.assign(window, {vis});
 class Hypergraph {
 
     edges: Hypergraph.Edge[] = [];
+    vlabels: Map<Hypergraph.Vertex, string> = new Map;
 
     constructor() {
     }
@@ -26,7 +27,10 @@ class Hypergraph {
             var root = ++c;
             if (Array.isArray(ast)) {
                 var subs = ast.map(aux);
-                self.edges.push(new Hypergraph.Edge("*", subs, root));
+                self.edges.push(new Hypergraph.Edge(ast.type || "", subs, root));
+            }
+            else {
+                self.vlabels.set(root, ast.text);
             }
             return root;
         }
@@ -36,7 +40,11 @@ class Hypergraph {
 
     toVis() {
         var nodes = new vis.DataSet<vis.Node>(
-            [...this.nodes].map(u => ({id: u, label: `${u}`, shape: 'box'}))
+            [...this.nodes].map(u => {
+                var vlabel = this.vlabels.get(u);
+                return {id: u, label: vlabel || `${u}`, shape: 'box',
+                        ...(vlabel ? LIT : {})};
+            })
         );
         
         // create an array with edges
@@ -85,13 +93,15 @@ namespace Hypergraph {
 
 }
 
-const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 0}},
+const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99}},
       TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
+      LIT = {color: '#9d9', shapeProperties: {borderRadius: 0}},
       HIE = {
           hierarchical: {
               direction: 'DU',
-              sortMethod: 'directed'
+              sortMethod: 'directed',
+              levelSeparation: 75
           }
       },
       PHY = {

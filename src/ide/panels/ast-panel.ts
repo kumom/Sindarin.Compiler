@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import Vue from 'vue';
 import CodeMirror from 'codemirror';
 
@@ -8,23 +9,28 @@ import { CodeRange } from '../ide';
 
 
 
-class AstPanel {
+class AstPanel extends EventEmitter {
 
     $el: Element
     tree: Vue
     ast: Ast
 
     constructor() {
+        super();
         this.tree = new Vue(treeview);
         this.tree.$mount();
         this.$el = this.tree.$el;
+
+        this.tree.$on('action', (ev: TreeViewActionEvent) => this.action(ev));
     }
 
     show(ast: Ast, doc?: CodeMirror.Doc) {
         this.ast = ast;
         function aux(ast: Ast) {
             if (Array.isArray(ast))
-                return {root: ast.type, children: ast.map && ast.map(aux)};
+                return {root: {_component: 'term-inner', type: ast.type,
+                               ast: nonreactive(ast)},
+                        children: ast.map(aux)};
             else
                 return {root: {_component: 'token', at: pos(ast), ...ast}};
         }
@@ -42,10 +48,19 @@ class AstPanel {
         this.show(ast, doc);
     }
 
+    action(ev: TreeViewActionEvent) {
+        switch (ev.type) {
+            case 'peg':
+                this.emit('action:peg', {ast: ev.target.ast}); break;
+        }
+    }
+
 }
 
 
-type Ast = any[] & {type: string} | {};
+type Ast = {type: string} & (any[] | {text: string});
+
+type TreeViewActionEvent = {type: string, target: Vue.Component & {ast: Ast}};
 
 
 export { AstPanel, Ast }

@@ -7,6 +7,7 @@ import { Parser } from '../syntax/parser';
 import './ide.css';
 import { AstPanel } from './panels/ast-panel';
 import { PegPanel } from './panels/peg-panel';
+import { Hypergraph } from '../analysis/hypergraph';
 
 
 
@@ -22,7 +23,11 @@ class IDE {
         this.panels = {
             ast: this.addPanel(new AstPanel()),
             peg: this.addPanel(new PegPanel())
-        }
+        };
+        this.panels.ast.content.on('action:peg', ev => {
+            console.log(ev);
+            this.panels.peg.content.show(new Hypergraph().fromAst(ev.ast));
+        })
     }
 
     addPanel<A extends {$el: Element}>(content: A) {
@@ -71,6 +76,7 @@ class CodeRange {
 
 
 namespace IDE {
+
     export class Panel<A extends {$el: Element}> {
         content: A
         $el: HTMLDivElement
@@ -84,6 +90,7 @@ namespace IDE {
             this.$el.classList.add('ide__hidden');
         }
     }
+
 }
 
 
