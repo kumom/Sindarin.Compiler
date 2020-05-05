@@ -7,10 +7,11 @@ Object.assign(window, {vis});
 
 class Hypergraph {
 
+    vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex> = new Map;
     edges: Hypergraph.Edge[] = [];
-    vlabels: Map<Hypergraph.Vertex, string> = new Map;
+    vlabels: Map<Hypergraph.VertexId, string> = new Map;
 
-    _max: Hypergraph.Vertex = 0
+    _max: Hypergraph.VertexId = 0
 
     constructor() {
     }
@@ -23,31 +24,44 @@ class Hypergraph {
         return v;
     }
 
-    add(edges: Hypergraph.Edge[]) {
-        var vmap = new Map<Hypergraph.Vertex, Hypergraph.Vertex>(),
-            get = (u: Hypergraph.Vertex) => {
-                if (u > 0) return u;
-                var v = vmap.get(u);
-                if (!v) { v = this._fresh(); vmap.set(u, v); }
-                return v;
+    add(edges: Hypergraph.EdgeData[]) {
+        var vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex>(),
+            get = (u: Hypergraph.VertexId | Hypergraph.Vertex) => {
+                if (typeof u === 'number') {
+                    if (u > 0) return this._get(u);                    
+                    else {
+                        var v = vmap.get(u);
+                        if (!v) { v = this._fresh(); vmap.set(u, v); }
+                        return v;
+                    }
+                }
+                else {
+                    if (!this.vertices.get(u.id))
+                        this.vertices.set(u.id, u);
+                    return u;
+                }
             };
         for (let e of edges) {
-            e.target = get(e.target);
-            e.sources = e.sources.map(get);
-            this.edges.push(e);
+            for (let u of [e.target, ...e.sources])
+                if (typeof u === 'number')
+                    this._max = Math.max(this._max, u);
         }
+        var added = edges.map(e => new Hypergraph.Edge(e.label,
+                e.sources.map(get), get(e.target)));
+        this.edges.push(...added);
+        return added;
     }
 
     fromAst(ast: Ast) {
-        var self = this, c: Hypergraph.Vertex = this._max;
+        var self = this, c: Hypergraph.VertexId = this._max;
         function aux(ast: Ast) {
             var root = ++c;
             if (Array.isArray(ast)) {
                 var subs = ast.map(aux);
-                self.edges.push(new Hypergraph.Edge(ast.type || "", subs, root));
+                self.add([{label: ast.type || "", sources: subs, target: root}]);
             }
             else {
-                self.vlabels.set(root, ast.text);
+                self._get(root).label = ast.text;
             }
             return root;
         }
@@ -56,20 +70,28 @@ class Hypergraph {
         return this;
     }
 
+    _get(id: Hypergraph.VertexId) {
+        var v = this.vertices.get(id);
+        if (!v) {
+            v = new Hypergraph.Vertex(id);
+            this.vertices.set(id, v);
+        }
+        return v;
+    }
+
     _fresh() {
-        return ++this._max;
+        return new Hypergraph.Vertex(++this._max);
     }
 
     toVis() {
         var nodes = new vis.DataSet<vis.Node>(
-            [...this.nodes].map(u => {
-                var vlabel = this.vlabels.get(u);
-                return {id: u, label: vlabel || `${u}`, shape: 'box',
-                        ...(vlabel ? LIT : {})};
+            [...this.vertices.values()].map(u => {
+                return {id: u.id, label: u.label || `${u.id}`, shape: 'box',
+                        ...(u.label ? LIT : {})};
             })
         );
         
-        // create an array with edges
+        // Collect edges
         var edges = new vis.DataSet<vis.Edge>([]);
         
         for (let e of this.edges) {
@@ -78,7 +100,7 @@ class Hypergraph {
             edges.add(ve.edges);
         }
 
-        return new Network({
+        return new HypergraphView({
             nodes: nodes,
             edges: edges
         });
@@ -88,7 +110,15 @@ class Hypergraph {
 
 namespace Hypergraph {
 
-    export type Vertex = number
+    export type VertexId = number
+
+    export class Vertex {
+        id: VertexId
+        label: string
+        constructor(id: VertexId) {
+            this.id = id;
+        }
+    }
 
     export class Edge {
         label: string
@@ -106,11 +136,17 @@ namespace Hypergraph {
                     {id: nucleus, label: this.label, ...NUCLEUS},
                 ],
                 edges: vis.Edge[] = [
-                    {from: nucleus, to: this.target, ...TO},
-                    ...this.sources.map(from => ({from, to: nucleus, ...FROM}))
+                    {from: nucleus, to: this.target.id, ...TO},
+                    ...this.sources.map(v => ({from: v.id, to: nucleus, ...FROM}))
                 ];
             return {nodes, edges};
         }
+    }
+
+    export type EdgeData = {
+        label: string
+        sources: (Vertex | VertexId)[]
+        target: Vertex | VertexId
     }
 
 }
@@ -119,6 +155,7 @@ const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99
       TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       LIT = {color: '#9d9', shapeProperties: {borderRadius: 0}},
+      FAINT = {color: {background: '#eee', border: '#ddd'}, font: {color: '#ccc'}},
       HIE = {
           hierarchical: {
               direction: 'DU',
@@ -131,15 +168,19 @@ const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99
               enabled: true,
               solver: 'repulsion',
               minVelocity: 4,
-              timestep: 1
+              timestep: 1,
+              hierarchicalRepulsion: {
+                  nodeDistance: 50,
+                  avoidOverlap: 1
+              }
           }
       };
 
 
 
-class Network {
+class HypergraphView {
 
-    data: vis.Data
+    data: HypergraphView.Data
     options: vis.Options = {
         layout: {
             improvedLayout: false,
@@ -150,18 +191,56 @@ class Network {
         },
         ...PHY
     };
+    network: vis.Network
 
-    constructor(data: vis.Data) {
+    constructor(data: HypergraphView.Data) {
         this.data = data;
     }
 
     render(on: HTMLElement) {
-        var network = new vis.Network(on, this.data, this.options);
-        return network;
+        this.network = new vis.Network(on, this.data, this.options);
+        return this;
+    }
+
+    nail() {
+        this.network.storePositions();
+        this.network.setOptions({layout: {hierarchical: {enabled: false}}});
+        this.data.nodes.update(this.data.nodes.getIds()
+            .map(id => ({id, fixed: true /*physics: false*/})));
+        this.data.edges.update(this.data.edges.getIds()
+            .map(id => ({id, physics: false})));
+        this.network.setOptions({physics: {solver: 'repulsion'}});
+    }
+
+    fade() {
+        this.data.nodes.update(this.data.nodes.getIds()
+            .map(id => ({id, ...FAINT})));
+        this.data.edges.update(this.data.edges.getIds()
+            .map(id => ({id, color: '#ccc'})));
+    }
+
+    merge(that: HypergraphView) {
+        that.data.nodes.forEach(u => {
+            if (!this.data.nodes.get(u.id))
+                this.data.nodes.add(u);
+        });
+        that.data.edges.forEach(e => {
+            this.data.edges.add(e);
+        })
     }
 
 }
 
 
+namespace HypergraphView {
 
-export { Hypergraph }
+    export type Data = {
+        nodes: vis.DataSet<vis.Node, 'id'>
+        edges: vis.DataSet<vis.Edge, 'id'>
+    };
+      
+}
+
+
+
+export { Hypergraph, HypergraphView }

@@ -1,8 +1,7 @@
 import Vue from 'vue';
 import Component from 'vue-class-component';
 
-import { Network } from 'vis-metapkg';
-import { Hypergraph } from '../../analysis/hypergraph';
+import { Hypergraph, HypergraphView } from '../../analysis/hypergraph';
 
 
 
@@ -11,7 +10,7 @@ class PegPanel extends Vue {
 
     $el: HTMLDivElement
     peg: Hypergraph
-    network: Network
+    view: HypergraphView
 
     render(createElement) {
         return createElement('div');
@@ -19,12 +18,12 @@ class PegPanel extends Vue {
 
     show(peg: Hypergraph) {
         this.peg = peg;
-        this.network = peg.toVis().render(this.$el);
+        this.view = peg.toVis().render(this.$el);
     }
 
     showConfig() {
         var cpanel = new PegConfigPanel();
-        cpanel.show(this.network);
+        cpanel.show(this.view);
         return cpanel;
     }
 
@@ -42,8 +41,8 @@ class PegConfigPanel {
         this.$el = document.createElement('div');
     }
 
-    show(network: Network) {
-        network.setOptions({configure: {container: this.$el}});
+    show(forView: HypergraphView) {
+        forView.network.setOptions({configure: {container: this.$el}});
     }
 
 }
