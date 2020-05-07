@@ -46,10 +46,40 @@ class Hypergraph {
                 if (typeof u === 'number')
                     this._max = Math.max(this._max, u);
         }
-        var added = edges.map(e => new Hypergraph.Edge(e.label,
-                e.sources.map(get), get(e.target)));
+        var added = edges.map(ed => {
+            var e = new Hypergraph.Edge(ed.label,
+                            ed.sources.map(get), get(ed.target));
+            e.sources.forEach(u => u.outgoing.push(e));
+            e.target.incoming.push(e);
+            return e;
+        });
         this.edges.push(...added);
         return added;
+    }
+
+    remove(edges: Hypergraph.Edge[]) {
+        for (let e of edges) {
+            e.target.incoming = e.target.incoming.filter(ue => ue !== e);
+            for (let u of e.sources) {
+                u.outgoing = u.outgoing.filter(ue => ue !== e);
+            }
+        }
+        this.edges = this.edges.filter(e => !edges.includes(e));
+    }
+
+    merge(vertices: Hypergraph.Vertex[]) {
+        var rep = vertices[0];
+        for (let u of vertices.slice(1)) {
+            for (let e of u.incoming) {
+                e.target = rep;
+                rep.incoming.push(e);
+            }
+            for (let e of u.outgoing) {
+                e.sources = e.sources.map(v => u === v ? rep : v);
+                rep.outgoing.push(e);
+            }
+            this.vertices.delete(u.id);
+        }
     }
 
     fromAst(ast: Ast) {
@@ -80,7 +110,9 @@ class Hypergraph {
     }
 
     _fresh() {
-        return new Hypergraph.Vertex(++this._max);
+        var u = new Hypergraph.Vertex(++this._max);
+        this.vertices.set(u.id, u);
+        return u;
     }
 
     toVis() {
@@ -115,6 +147,8 @@ namespace Hypergraph {
     export class Vertex {
         id: VertexId
         label: string
+        incoming: Edge[] = []
+        outgoing: Edge[] = []
         constructor(id: VertexId) {
             this.id = id;
         }

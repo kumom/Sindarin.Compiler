@@ -14,7 +14,7 @@ html, body {
     flex-direction: row;
 }
 
-#ide > div {
+#ide .panel {
     flex-basis: 1em;
     flex-grow: 1;
     height: 100%;
@@ -31,6 +31,10 @@ html, body {
 
 #ide .panel.ide__hidden {
     display: none;
+}
+
+#ide .panel.panel__ide-panel-peg {
+    flex-grow: 3;
 }
 
 /* Editor stuff */
