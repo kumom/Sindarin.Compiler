@@ -91,3 +91,15 @@ html, body {
 .treeview .term-inner:hover .action:hover {
     opacity: 0.6;
 }
+
+/* PEG stuff */
+
+#ide .panel.panel__ide-panel-peg {
+    position: relative;   /* for toolbar positioning */
+}
+
+#ide .panel.panel__ide-panel-peg .toolbar {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+}

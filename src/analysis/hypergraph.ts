@@ -189,7 +189,9 @@ const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99
       TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       LIT = {color: '#9d9', shapeProperties: {borderRadius: 0}},
-      FAINT = {color: {background: '#eee', border: '#ddd'}, font: {color: '#ccc'}},
+      FAINT = {color: {background: '#eee', border: '#ddd', 
+                       highlight: {background: '#eee', border: '#ddd'}},
+               font: {color: '#ccc'}},
       HIE = {
           hierarchical: {
               direction: 'DU',

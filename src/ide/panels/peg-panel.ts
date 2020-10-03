@@ -2,6 +2,8 @@ import Vue from 'vue';
 import Component from 'vue-class-component';
 
 import { Hypergraph, HypergraphView } from '../../analysis/hypergraph';
+// @ts-ignore
+import Toolbar from '../components/peg-toolbar.vue';
 
 
 
@@ -11,6 +13,7 @@ class PegPanel extends Vue {
     $el: HTMLDivElement
     peg: Hypergraph
     view: HypergraphView
+    toolbar: Vue
 
     render(createElement) {
         return createElement('div');
@@ -19,6 +22,14 @@ class PegPanel extends Vue {
     show(peg: Hypergraph) {
         this.peg = peg;
         this.view = peg.toVis().render(this.$el);
+        this.toolbar = new (Vue.component('peg-toolbar', Toolbar))();
+        this.$el.append(this.toolbar.$mount().$el);
+    }
+
+    overlay(peg: Hypergraph) {
+        var n1 = this.view, n2 = peg.toVis();
+        n1.nail(); n1.fade();
+        setTimeout(() => n1.merge(n2), 1);
     }
 
     showConfig() {
