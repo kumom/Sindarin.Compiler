@@ -24,6 +24,7 @@ class PegPanel extends Vue {
         this.view = peg.toVis().render(this.$el);
         this.toolbar = new (Vue.component('peg-toolbar', Toolbar))();
         this.$el.append(this.toolbar.$mount().$el);
+        this.$emit('show');
     }
 
     overlay(peg: Hypergraph) {

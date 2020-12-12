@@ -1,6 +1,5 @@
 import Vue from 'vue';
 
-import { Parser } from '../syntax/parser';
 import { Hypergraph } from '../analysis/hypergraph';
 
 // @ts-ignore
@@ -46,6 +45,10 @@ class IDE {
 
 }
 
+interface Parser {
+    parse(program: string): Ast;
+}
+
 
 EditorPanel.install();
 AstPanel.install();
@@ -53,4 +56,4 @@ PegPanel.install();
 
 
 
-export { IDE }
+export { IDE, Parser }

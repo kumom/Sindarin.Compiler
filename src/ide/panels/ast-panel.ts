@@ -2,7 +2,7 @@ import Vue from 'vue';
 import Component from 'vue-class-component';
 import CodeMirror from 'codemirror';
 
-import { Parser } from '../../syntax/parser';
+import type { Parser } from '../ide';
 
 import { treeview, nonreactive } from '../components';
 import { CodeRange } from './editor-panel';

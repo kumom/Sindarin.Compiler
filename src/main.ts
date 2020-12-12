@@ -1,5 +1,6 @@
 
 import { C99Parser } from './syntax/c99';
+import { TypeScriptParser } from './syntax/typescript-ast';
 import { IDE } from './ide/ide';
 
 import { Hypergraph } from './analysis/hypergraph';
@@ -54,10 +55,10 @@ class Matched {
     constructor(genf: () => Generator<Edge>) {
         this.gen = genf();
     }
-    e(cont: (e:Edge) => void | boolean) {
+    e(cont: (e:Edge) => void | boolean) {  // iterates edges
         for (let e of this.gen) cont(e)
     }
-    t(cont: (t:Vertex) => void | boolean) {
+    t(cont: (t:Vertex) => void | boolean) {  // iterates edge targets
         this.e(e => cont(e.target));
     }
     first<T>(f: (e:Edge) => T) {
@@ -175,12 +176,14 @@ function semanticAnalysis(peg1: Hypergraph) {
 
 
 function main() {
-    const parser = new C99Parser();
+    const parser = new TypeScriptParser();  /** @todo select parser by program */
+               //  new C99Parser();
 
     requestAnimationFrame(async () => {
         var ide = new IDE();
 
-        await ide.open('/data/bincnt.c');
+        await ide.open('/data/typescript/net-server.ts');
+        //await ide.open('/data/c/bincnt.c');
         ide.parse(parser);
 
         //ide.panels.ast.hide();
@@ -189,9 +192,8 @@ function main() {
         
         function syntax() {
             peg1 = new Hypergraph().fromAst(ide.panels.ast.ast[0]);
-            ide.panels.peg.show(peg1);
-            ide.panels.peg.toolbar.$on('action', onaction);
             peg2 = undefined;
+            ide.panels.peg.show(peg1);
             Object.assign(window, {peg1});
         }
 
@@ -202,6 +204,9 @@ function main() {
                 Object.assign(window, {peg2});
             }
         }
+
+        ide.panels.peg.$on('show', () => 
+            ide.panels.peg.toolbar.$on('action', onaction));
 
         syntax();
 
