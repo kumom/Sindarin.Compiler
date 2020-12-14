@@ -1,5 +1,5 @@
 // https://nodejs.org/api/net.html#net_net_createserver_options_connectionlistener
-import net from 'net';
+import * as net from './lib/net';
 const port = 4400;
 const server = net.createServer((c) => {
   // 'connection' listener.

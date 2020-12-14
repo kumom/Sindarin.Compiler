@@ -2,6 +2,7 @@
 #include <node_api.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <dlfcn.h>
 
 #define ST_N if (status != napi_ok) return nullptr
@@ -122,6 +123,36 @@ napi_value js_cstring(napi_env env, napi_callback_info args) {
     return cprim(env, (void*)buf);  /** @ohno never freed */
 }
 
+napi_value js_cbuffer(napi_env env, napi_callback_info args) {
+    napi_status status;
+
+    size_t argc = 1;
+    napi_value this_, argv[1];
+    status = napi_get_cb_info(env, args, &argc, argv, &this_, NULL);  ST_N;
+
+    void *buf; size_t length;
+    status = napi_get_buffer_info(env, argv[0], &buf, &length);  ST_N;
+
+    return cprim(env, buf);
+}
+
+napi_value js_cbuffer_tobuffer(napi_env env, napi_callback_info args) {
+    napi_status status;
+
+    size_t argc = 2;
+    napi_value this_, argv[2];
+    status = napi_get_cb_info(env, args, &argc, argv, &this_, NULL);  ST_N;
+
+    void *buf = cprim_get(env, argv[0]);
+    size_t length = (size_t)cprim_get(env, argv[1]);
+    napi_value v;
+    void *dest;
+    status = napi_create_buffer(env, length, &dest, &v);  ST_N;
+    memcpy(dest, buf, length);
+
+    return v;
+}
+
 template < typename W >
 napi_value js_cset(napi_env env, napi_callback_info args) {
     napi_status status;
@@ -171,6 +202,8 @@ napi_value init(napi_env env, napi_value exports) {
     status = export_cfunction(env, exports, "cint",     js_cint);        ST_N;
     status = export_cfunction(env, exports, "cint_",    js_cint_tonumber);     ST_N;
     status = export_cfunction(env, exports, "cstring",  js_cstring);     ST_N;
+    status = export_cfunction(env, exports, "cbuffer",  js_cbuffer);     ST_N;
+    status = export_cfunction(env, exports, "cbuffer_", js_cbuffer_tobuffer);     ST_N;
     status = export_cfunction(env, exports, "csetw",    js_csetw);       ST_N;
     status = export_cfunction(env, exports, "cset16",   js_cset16);      ST_N;
     status = export_cfunction(env, exports, "cset32",   js_cset32);      ST_N;
