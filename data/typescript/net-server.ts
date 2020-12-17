@@ -1,4 +1,5 @@
 // https://nodejs.org/api/net.html#net_net_createserver_options_connectionlistener
+import './lib/prelude';
 import * as net from './lib/net';
 const port = 4400;
 const server = net.createServer((c) => {

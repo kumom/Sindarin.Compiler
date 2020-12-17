@@ -73,6 +73,7 @@ class Socket extends EventEmitter {  /** @todo should extend Stream */
     }
     pipe(other: Socket) {
         this.on('data', d => other.write(d));
+        /** @ohno this should be async... */
         this.exhaust();
     }
 
@@ -80,14 +81,14 @@ class Socket extends EventEmitter {  /** @todo should extend Stream */
         var sz = cint(Socket.BUFFERSIZE), buf = c.malloc(sz);
         while (true) {
             var rd = sys.recv(this.fd, buf, sz, cint(0));
-            console.log(cint_(rd));
             if (cint_(rd) == 0) break;
             else if (cint_(rd) < 0) throw new PosixError("recv");
             this.emit('data', cbuffer_(buf, rd));
         }
+        this.emit('end');
     }
 
-    static readonly BUFFERSIZE = 65536
+    static readonly BUFFERSIZE = 65536;
 }
 
 class TCP {
