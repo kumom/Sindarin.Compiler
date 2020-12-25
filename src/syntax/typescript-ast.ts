@@ -11,8 +11,7 @@ class TypeScriptParser {
     }
 
     postprocessSourceFile(src: ts.SourceFile): Ast {
-        return Object.assign([this.postprocessAst(src, src)],
-                             {type: 'program', _ts: src});
+        return this.postprocessAst(src, src);
     }
 
     postprocessAst(u: ts.Node, src: ts.SourceFile) {

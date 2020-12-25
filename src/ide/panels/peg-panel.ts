@@ -15,16 +15,24 @@ class PegPanel extends Vue {
     view: HypergraphView
     toolbar: Vue
 
+    sizeThreshold = 600
+
     render(createElement) {
         return createElement('div');
     }
 
     show(peg: Hypergraph) {
         this.peg = peg;
-        this.view = peg.toVis().render(this.$el);
+        if (peg.vertices.size > this.sizeThreshold) {
+            console.warn(`too many vertices (${peg.vertices.size})`);
+            this.$el /* clear */;
+        }
+        else {
+            this.view = peg.toVis().render(this.$el);
+        }
         this.toolbar = new (Vue.component('peg-toolbar', Toolbar))();
         this.$el.append(this.toolbar.$mount().$el);
-        this.$emit('show');
+        this.$emit('show', {peg});
     }
 
     overlay(peg: Hypergraph) {

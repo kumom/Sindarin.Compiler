@@ -45,16 +45,17 @@ class AstPanel extends Vue {
 
     parse(doc: CodeMirror.Doc, parser: Parser) {
         var program = doc.getValue(),
-            ast = parser.parse(program)[0];
+            ast = parser.parse(program);
         this.show(ast, doc);
     }
 
     action(ev: TreeViewActionEvent) {
         switch (ev.type) {
-            case 'peg':
-                this.$emit('action:peg', {ast: ev.target.ast}); break;
+            case 'peg': this.focus(ev.target.ast); break;
         }
     }
+
+    focus(ast: Ast) { this.$emit('action:peg', {ast}); }
 
     static install() {
         Vue.component('ide-panel-ast', this);

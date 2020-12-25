@@ -4,71 +4,11 @@ import { TypeScriptParser } from './syntax/typescript-ast';
 import { IDE } from './ide/ide';
 
 import { Hypergraph } from './analysis/hypergraph';
+import { HMatcher } from './analysis/pattern';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
-
-class HMatcher {
-    g: Hypergraph
-
-    constructor(g: Hypergraph) {
-        this.g = g;
-    }
-
-    l(label: string | string[]) {       // matches edges by label
-        const edges = this.g.edges;
-        if (!Array.isArray(label)) label = [label];
-        return new Matched(function *() {
-            for (let e of edges)
-                if (label.includes(e.label)) yield e;
-        });
-    }
-
-    sl(source: Vertex, label: string | string[]) {   // matches by source & label
-        if (!Array.isArray(label)) label = [label];
-        return new Matched(function *() {
-            for (let e of source.outgoing)
-                if (label.includes(e.label)) yield e;
-        });
-    }
-
-    lt_rtc(target: Vertex, label: string | string[]) {    // matches by label & target
-        if (!Array.isArray(label)) label = [label];       // (reflexive-transitive)
-        function *aux(v: Vertex) {
-            for (let e of v.incoming) {
-                if (label.includes(e.label)) {
-                    var handled = yield e;
-                    if (!handled) {
-                        for (let u of e.sources) yield* aux(u);
-                    }
-                }
-            }
-        }
-        return new Matched(() => aux(target));
-    }
-
-}
-
-class Matched {
-    gen: Generator<Edge>
-    constructor(genf: () => Generator<Edge>) {
-        this.gen = genf();
-    }
-    e(cont: (e:Edge) => void | boolean) {  // iterates edges
-        for (let e of this.gen) cont(e)
-    }
-    t(cont: (t:Vertex) => void | boolean) {  // iterates edge targets
-        this.e(e => cont(e.target));
-    }
-    first<T>(f: (e:Edge) => T) {
-        for (let e of this.gen) {
-            var va = f(e);
-            if (va) return va;
-        }
-    }
-    t_first() { return this.first(e => e.target); }
-}
 
 
 function semanticAnalysis(peg1: Hypergraph) {
@@ -182,7 +122,7 @@ function main() {
     requestAnimationFrame(async () => {
         var ide = new IDE();
 
-        await ide.open('/data/typescript/net-server.ts');
+        await ide.open('/data/typescript/lib/net.ts');
         //await ide.open('/data/c/bincnt.c');
         ide.parse(parser);
 
@@ -191,10 +131,10 @@ function main() {
         var peg1: Hypergraph, peg2: Hypergraph;
         
         function syntax() {
-            peg1 = new Hypergraph().fromAst(ide.panels.ast.ast[0]);
+            peg1 = new Hypergraph().fromAst(ide.panels.ast.ast);
             peg2 = undefined;
             ide.panels.peg.show(peg1);
-            Object.assign(window, {peg1});
+            Object.assign(window, {peg1, m: new HMatcher(peg1), H: HMatcher});
         }
 
         function semantics() {
@@ -205,8 +145,12 @@ function main() {
             }
         }
 
-        ide.panels.peg.$on('show', () => 
-            ide.panels.peg.toolbar.$on('action', onaction));
+        ide.panels.peg.$on('show', ({peg}) => {
+            peg1 = peg; // in case it is invoked from clicking on an AST node
+            Object.assign(window, {peg1, m: new HMatcher(peg1), H: HMatcher});
+
+            ide.panels.peg.toolbar.$on('action', onaction)
+        });
 
         syntax();
 
@@ -219,9 +163,33 @@ function main() {
             }
         }
 
+        const ID = HMatcher.Ast.byNodeType('Identifier');
+
+        class SourceNavigator {
+            gotoDecl(declType: string, name: string) {
+                var m = new HMatcher(peg1), mm = new HMatcher.Memento,
+                    res = [];
+                mm.e('e')(m.l(declType)).s(ID(u => {
+                        if (u.label == name) {
+                            res.push(mm.edges['e'].target.data.ast);
+                        }
+                    }));
+                if (res[0]) ide.panels.ast.focus(res[0]);
+            }
+
+            gotoClass(name: string) {
+                this.gotoDecl('ClassDeclaration', name);
+            }
+            gotoMethod(name: string) {
+                this.gotoDecl('MethodDeclaration', name);
+            }
+        }
+
+        var nav = new SourceNavigator;
+
         //ide.addPanel(ide.panels.peg.showConfig());
 
-        Object.assign(window, {ide});
+        Object.assign(window, {ide, nav});
     })    
     
     Object.assign(window, {parser, Hypergraph});

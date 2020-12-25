@@ -3,11 +3,10 @@ import * as vis from 'vis-metapkg';
 import { Ast } from '../ide/panels/ast-panel';
 
 
-Object.assign(window, {vis});
 
-class Hypergraph {
+class Hypergraph<VData = any> {
 
-    vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex> = new Map;
+    vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>> = new Map;
     edges: Hypergraph.Edge[] = [];
     vlabels: Map<Hypergraph.VertexId, string> = new Map;
 
@@ -17,7 +16,7 @@ class Hypergraph {
     }
 
     get nodes() {
-        var v = new Set<Hypergraph.Vertex>();
+        var v = new Set<Hypergraph.Vertex<VData>>();
         for (let e of this.edges)
             for (let u of e.incident)
                 v.add(u);
@@ -25,8 +24,8 @@ class Hypergraph {
     }
 
     add(edges: Hypergraph.EdgeData[]) {
-        var vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex>(),
-            get = (u: Hypergraph.VertexId | Hypergraph.Vertex) => {
+        var vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>>(),
+            get = (u: Hypergraph.VertexId | Hypergraph.Vertex<VData>) => {
                 if (typeof u === 'number') {
                     if (u > 0) return this._get(u);                    
                     else {
@@ -67,7 +66,7 @@ class Hypergraph {
         this.edges = this.edges.filter(e => !edges.includes(e));
     }
 
-    merge(vertices: Hypergraph.Vertex[]) {
+    merge(vertices: Hypergraph.Vertex<VData>[]) {
         var rep = vertices[0];
         for (let u of vertices.slice(1)) {
             for (let e of u.incoming) {
@@ -85,14 +84,15 @@ class Hypergraph {
     fromAst(ast: Ast) {
         var self = this, c: Hypergraph.VertexId = this._max;
         function aux(ast: Ast) {
-            var root = ++c;
+            var root = ++c, u = self._get(root);
             if (Array.isArray(ast)) {
                 var subs = ast.map(aux);
                 self.add([{label: ast.type || "", sources: subs, target: root}]);
             }
             else {
-                self._get(root).label = ast.text;
+                u.label = ast.text;
             }
+            u.data = <any>{ast} as VData /** @oops */
             return root;
         }
         aux(ast);
@@ -144,9 +144,10 @@ namespace Hypergraph {
 
     export type VertexId = number
 
-    export class Vertex {
+    export class Vertex<Data = any> {
         id: VertexId
         label: string
+        data: Data
         incoming: Edge[] = []
         outgoing: Edge[] = []
         constructor(id: VertexId) {
