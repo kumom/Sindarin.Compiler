@@ -1,6 +1,6 @@
 // This is a minimal polyfill of Node.js's lib/net.js
 // for net-server.ts; TCP only.
-// Uses the clib native interface to make C calls.
+// Uses the Clin native interface to make C calls.
 
 import { EventEmitter } from './events';
 
@@ -53,6 +53,9 @@ function createServer(...args: any[]) {
     return new Server(...args);
 }
 
+import { dlsym, ccall, cint, cint_, cstring, csetw, cset16, cset32, cbuffer, cbuffer_, libc, c } from '../../../runtime/js/clin.js';
+import { cmem, slot } from './meta/cmem';
+
 
 class Socket extends EventEmitter {  /** @todo should extend Stream */
     readonly fd: c.int
@@ -91,7 +94,10 @@ class Socket extends EventEmitter {  /** @todo should extend Stream */
     static readonly BUFFERSIZE = 65536;
 }
 
+
+@cmem(8)
 class TCP {
+    @slot(c.int, 0)
     readonly fd: c.int
 
     constructor() {
@@ -135,8 +141,6 @@ class PosixError extends Error {
     }
 }
 
-import { dlsym, ccall, cint, cint_, cstring, csetw, cset16, cset32, cbuffer, cbuffer_ } from '../../../runtime/js/clin.js';
-
 /*
 declare function dlsym(nm: string): c.pvoid
 declare function ccall(func: c.pvoid, ...args: c.prim[]): c.prim
@@ -147,18 +151,6 @@ declare function cset32(p: c.pvoid, offset: number, v: c.prim): void
 declare function csetw(p: c.pvoid, offset: number, v: c.prim): void
 */
 
-namespace c {
-    export abstract class prim { }
-    export abstract class int extends prim { }
-    export abstract class pvoid extends prim { }
-    export abstract class pchar extends pvoid { }
-    export const malloc = libc("malloc");
-}
-
-function libc(name: string): (...args: c.prim[]) => c.prim {
-    var f = dlsym(name);
-    return (...args: c.prim[]) => ccall(f, ...args);
-}
 
 namespace sys {
     export const socket = libc("socket");

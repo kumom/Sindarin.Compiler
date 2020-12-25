@@ -2,6 +2,9 @@
     "name": "sindarin.compiler",
     "version": "0.1.0",
     "main": "dist/index.html",
+    "scripts": {
+        "qa:build-mujs": "kremlin data/typescript/net-server.ts && babel build/kremlin/net-server.js > build/kremlin/net-server.mu.js"
+    },
     "dependencies": {
         "@types/codemirror": "0.0.91",
         "codemirror": "^5.53.2",

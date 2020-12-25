@@ -182,6 +182,34 @@ napi_value js_cset32(napi_env env, napi_callback_info args) {
     return js_cset<int32_t>(env, args);
 }
 
+template < typename W >
+napi_value js_cget(napi_env env, napi_callback_info args) {
+    napi_status status;
+
+    size_t argc = 2;
+    napi_value this_, argv[2];
+    status = napi_get_cb_info(env, args, &argc, argv, &this_, NULL);  ST_N;
+
+    W *base = (W *)cprim_get(env, argv[0]);
+    int64_t offset;
+	status = napi_get_value_int64(env, argv[1], &offset);  ST_N;
+    napi_value val = cprim(env, (void*)(size_t)base[offset]);
+
+    return val;
+}
+
+napi_value js_cgetw(napi_env env, napi_callback_info args) {
+    return js_cget<void*>(env, args);
+}
+
+napi_value js_cget16(napi_env env, napi_callback_info args) {
+    return js_cget<int16_t>(env, args);
+}
+
+napi_value js_cget32(napi_env env, napi_callback_info args) {
+    return js_cget<int32_t>(env, args);
+}
+
 napi_status export_cfunction(napi_env env, napi_value exports,
                       const char *name, napi_callback func) {
     napi_status status;
@@ -207,6 +235,9 @@ napi_value init(napi_env env, napi_value exports) {
     status = export_cfunction(env, exports, "csetw",    js_csetw);       ST_N;
     status = export_cfunction(env, exports, "cset16",   js_cset16);      ST_N;
     status = export_cfunction(env, exports, "cset32",   js_cset32);      ST_N;
+    status = export_cfunction(env, exports, "cgetw",    js_cgetw);       ST_N;
+    status = export_cfunction(env, exports, "cget16",   js_cget16);      ST_N;
+    status = export_cfunction(env, exports, "cget32",   js_cget32);      ST_N;
     return exports;
 }
 
