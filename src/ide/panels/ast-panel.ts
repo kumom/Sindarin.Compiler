@@ -16,6 +16,8 @@ class AstPanel extends Vue {
     tree: Vue
     ast: Ast
     
+    focused: Ast
+
     render(createElement) {
         return createElement(treeview, {children: []});
     }
@@ -26,7 +28,7 @@ class AstPanel extends Vue {
     }
 
     show(ast: Ast, doc?: CodeMirror.Doc) {
-        this.ast = ast;
+        this.ast = this.focused = ast;
         function aux(ast: Ast) {
             if (Array.isArray(ast))
                 return {root: {_component: 'term-inner', type: ast.type,
@@ -55,7 +57,10 @@ class AstPanel extends Vue {
         }
     }
 
-    focus(ast: Ast) { this.$emit('action:peg', {ast}); }
+    focus(ast: Ast) {
+        this.focused = ast;
+        this.$emit('action:peg', {ast});
+    }
 
     static install() {
         Vue.component('ide-panel-ast', this);

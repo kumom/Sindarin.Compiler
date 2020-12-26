@@ -24,8 +24,8 @@ class PegPanel extends Vue {
     show(peg: Hypergraph) {
         this.peg = peg;
         if (peg.vertices.size > this.sizeThreshold) {
-            console.warn(`too many vertices (${peg.vertices.size})`);
-            this.$el /* clear */;
+            console.warn(`[peg] too many vertices (${peg.vertices.size})`);
+            this.$el.querySelector('canvas')?.remove(); /* clear */
         }
         else {
             this.view = peg.toVis().render(this.$el);

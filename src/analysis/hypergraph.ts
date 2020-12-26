@@ -8,7 +8,6 @@ class Hypergraph<VData = any> {
 
     vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>> = new Map;
     edges: Hypergraph.Edge[] = [];
-    vlabels: Map<Hypergraph.VertexId, string> = new Map;
 
     _max: Hypergraph.VertexId = 0
 

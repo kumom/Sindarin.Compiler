@@ -111,13 +111,18 @@ namespace HMatcher {
         return <S>(cont: (t: T) => S) => (t: T) => pred(t) ? cont(t) : undefined;
     }
 
+    export function byLabel<T extends {label: string}>(label: string | string[]) {
+        if (!Array.isArray(label)) label = [label];
+        return filtered<T>(u => label.includes(u.label));
+    }
+
     /**
      * Ast-specific functionality.
      * (Ideally, all the data should be in the graph, but sometimes it is not.)
      */
     export namespace Ast {
         export function by<D extends {ast: Ast}>(pred: (ast: Ast) => boolean) {
-            return filtered((u: Vertex<D>) => {
+            return filtered<Vertex<D>>(u => {
                 let ast = u.data?.ast;
                 return !!ast && pred(ast);
             });
