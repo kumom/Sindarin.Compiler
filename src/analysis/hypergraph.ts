@@ -265,6 +265,48 @@ class HypergraphView {
         })
     }
 
+    untangle() {
+        for (let row of this.iterLevels())
+            this.sortHorizontally(row);
+    }
+
+    *iterLevels() {
+        var yvisited = new Set<number>();
+        for (let u of Object.values(this._nodes)) {
+            if (!yvisited.has(u.y)) {
+                yvisited.add(u.y);
+                yield this.getLevel(u.id)
+            }
+        }
+    }
+
+    selectLevel(node?: vis.IdType) {
+        this.network.selectNodes(this.getLevel(node).map(u => u.id));
+    }
+
+    getLevel(node?: vis.IdType) {
+        if (!node) {
+            node = this.network.getSelectedNodes()[0];
+            if (!node) return;
+        }
+        var pos = this.network.getPosition(node);
+        return Object.values(this._nodes).filter(u => u.y == pos.y);
+    }
+
+    sortHorizontally(nodes: vis.Node[]) {
+        if (!nodes) {
+            var _m = this._nodes;
+            nodes = this.network.getSelectedNodes().map(id => _m[id]);
+        }
+        var posx = nodes.map(u => u.x).sort((x1, x2) => x1 - x2);
+        for (let i in nodes) {
+            this.network.moveNode(nodes[i].id, posx[i], nodes[i].y);
+        }
+    }
+
+    get _nodes() {  /** @oops */
+        return (<any>this.network).body.nodes as {[id: string]: vis.Node}
+    }
 }
 
 
