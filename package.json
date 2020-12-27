@@ -3,25 +3,28 @@
     "version": "0.1.0",
     "main": "dist/index.html",
     "scripts": {
+        "build": "parcel build src/index.html",
+        "watch": "parcel watch --public-url=. --hmr-hostname=localhost src/index.html",
+        "start": "nw&",
         "qa:build-mujs": "kremlin data/typescript/net-server.ts && babel build/kremlin/net-server.js > build/kremlin/net-server.mu.js"
     },
     "dependencies": {
-        "@types/codemirror": "0.0.91",
         "codemirror": "^5.53.2",
         "nearley": "^2.19.2",
         "vis-metapkg": "file:src/vis",
         "vue": "^2.6.11",
-        "vue-class-component": "^7.2.3",
-        "vue-hot-reload-api": "^2.3.4"
+        "vue-class-component": "^7.2.3"
     },
     "devDependencies": {
         "@babel/cli": "^7.12.10",
         "@babel/core": "^7.12.10",
         "@babel/preset-env": "^7.12.10",
+        "@types/codemirror": "0.0.91",
         "@types/node": "^13.13.4",
         "@vue/component-compiler-utils": "^3.1.2",
         "nw-vue-devtools-prebuilt": "0.0.10",
         "typescript": "^3.8.3",
+        "vue-hot-reload-api": "^2.3.4",
         "vue-template-compiler": "^2.6.11"
     },
     "browserslist": [
