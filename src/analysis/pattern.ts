@@ -18,12 +18,11 @@ class HMatcher<VData = any> {
      * Matches edges by label.
      * @param label 
      */
-    l(label: string | string[]) {
-        const edges = this.g.edges;
-        if (!Array.isArray(label)) label = [label];
+    l(label: LabelPat) {
+        const edges = this.g.edges, p = HMatcher.toLabelPred(label);
         return new Matched(function *() {
             for (let e of edges)
-                if (label.includes(e.label)) yield e;
+                if (p(e.label)) yield e;
         });
     }
 
@@ -32,11 +31,11 @@ class HMatcher<VData = any> {
      * @param source start point
      * @param label 
      */
-    sl(source: Vertex<VData>, label: string | string[]) {
-        if (!Array.isArray(label)) label = [label];
+    sl(source: Vertex<VData>, label: LabelPat) {
+        var p = HMatcher.toLabelPred(label);
         return new Matched(function *() {
             for (let e of source.outgoing)
-                if (label.includes(e.label)) yield e;
+                if (p(e.label)) yield e;
         });
     }
 
@@ -45,11 +44,11 @@ class HMatcher<VData = any> {
      * @param target path end point
      * @param label label(s) of all edges along path
      */
-    lt_rtc(target: Vertex<VData>, label: string | string[]) {
-        if (!Array.isArray(label)) label = [label];
+    lt_rtc(target: Vertex<VData>, label: LabelPat) {
+        var p = HMatcher.toLabelPred(label);
         function *aux(v: Vertex) {
             for (let e of v.incoming) {
-                if (label.includes(e.label)) {
+                if (p(e.label)) {
                     var handled = yield e;
                     if (!handled) {
                         for (let u of e.sources) yield* aux(u);
@@ -64,6 +63,19 @@ class HMatcher<VData = any> {
 
 
 namespace HMatcher {
+
+    export type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
+    export type LabelPred = (l: string) => boolean
+
+    export function toLabelPred(l: LabelPat) {
+        if (typeof l == 'string') return (s: string) => s == l;
+        else if (Array.isArray(l)) return (s: string) => l.includes(s);
+        else if (l instanceof Set) return (s: string) => l.has(s);
+        else if (l instanceof RegExp) return (s: string) => !!s.match(l);
+        else return l;
+    }
+
+    export const LANY: LabelPat = () => true;
 
     export class Matched<VData = any> {
         gen: Generator<Edge>
@@ -134,6 +146,7 @@ namespace HMatcher {
     }
 }
 
+import LabelPat = HMatcher.LabelPat;
 import Matched = HMatcher.Matched;
 
 

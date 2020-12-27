@@ -5,6 +5,7 @@ import { IDE } from './ide/ide';
 
 import { Hypergraph } from './analysis/hypergraph';
 import { HMatcher } from './analysis/pattern';
+import * as SetOps from './infra/setops';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
@@ -12,7 +13,7 @@ import { AstPanel } from './ide/panels/ast-panel';
 
 
 
-function semanticAnalysis(peg1: Hypergraph) {
+function semanticAnalysis_C(peg1: Hypergraph) {
     var peg2 = new Hypergraph();
         
     peg2._max = peg1._max;
@@ -115,6 +116,48 @@ function semanticAnalysis(peg1: Hypergraph) {
     return peg2;
 }
 
+function semanticAnalysis_TS(peg1: Hypergraph) {
+    var peg2 = new Hypergraph();
+
+    peg2._max = peg1._max;
+
+    var m = new HMatcher(peg1),
+        mm = new HMatcher.Memento;
+
+    const SYNCAT = /* should be all syntactic edge types */
+           new Set(["SyntaxList", "PropertyAccessExpression", "CallExpression",
+                    "VariableDeclaration", "VariableDeclarationList", "FirstStatement",
+                    "BinaryExpression", "BreakStatement", "NewExpression",
+                    "ThrowStatement", "IfStatement", "ExpressionStatement",
+                    "Block", "WhileStatement", "MethodDeclaration"]),
+          SCOPES = ['ClassDeclaration', 'MethodDeclaration', 'Block'];
+
+    m.l(SCOPES).t(u => {
+        peg2.add([{label: 'lscope', sources: [u], target: -1}]);
+    });
+
+    /* u --(SYNCAT - SCOPES)-->* v --(lscope)--> s */
+    m.l(SetOps.diff(SYNCAT, SCOPES)).t(u =>
+        m.sl(u, SYNCAT).t(v => 
+            m.sl(v, 'lscope').t(lscope => {
+                peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
+            })
+        )
+    );
+
+    m.l(SetOps.diff(SYNCAT, SCOPES)).t(u =>
+        m.sl(u, SYNCAT).t(v1 => 
+            m.sl(v1, SYNCAT).t(v2 => 
+                m.sl(v2, 'lscope').t(lscope => {
+                    peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
+                })
+            )
+        )
+    );
+
+    return peg2;
+}
+
 
 function main() {
     const parser = new TypeScriptParser();  /** @todo select parser by program */
@@ -124,10 +167,13 @@ function main() {
         var ide = new IDE();
 
         await ide.open('/data/typescript/lib/net.ts');
-        setTimeout(() => nav.gotoMethod('bind'), 0); /** @oops can only run after PegPanel 'show' event */
+        setTimeout(() => nav.gotoMethod('exhaust'), 0); /** @oops can only run after PegPanel 'show' event */
+        //setTimeout(() =>
+        //    nav.ast.focus(nav.findImports()[0]));
 
         //await ide.open('/data/c/bincnt.c');
         ide.parse(parser);
+        var semanticAnalysis = semanticAnalysis_TS;
 
         //ide.panels.ast.hide();
 
@@ -186,6 +232,15 @@ class SourceNavigator {
     constructor(ast: AstPanel, peg: Hypergraph) {
         this.ast = ast;
         this.peg = peg;
+    }
+
+    findImports() {
+        var m = new HMatcher(this.peg),
+            res = [];
+        m.l('ImportClause').t(u => {
+            if (u.data?.ast) res.push(u.data.ast);
+        });
+        return res;
     }
 
     gotoDecl(declType: string, name: string) {
