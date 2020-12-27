@@ -189,9 +189,9 @@ const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99
       TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       LIT = {color: '#9d9', shapeProperties: {borderRadius: 0}},
-      FAINT = {color: {background: '#eee', border: '#ddd', 
-                       highlight: {background: '#eee', border: '#ddd'}},
-               font: {color: '#ccc'}},
+      FAINT = {color: {background: '#ddd', border: '#bbb', 
+                       highlight: {background: '#ddd', border: '#bbb'}},
+               font: {color: '#ccc'}, opacity: 0.5},
       HIE = {
           hierarchical: {
               direction: 'DU',
@@ -252,7 +252,8 @@ class HypergraphView {
         this.data.nodes.update(this.data.nodes.getIds()
             .map(id => ({id, ...FAINT})));
         this.data.edges.update(this.data.edges.getIds()
-            .map(id => ({id, color: '#ccc'})));
+            .map(id => ({id, color: '#ccc', smooth: false})));
+        this.postprocess();
     }
 
     merge(that: HypergraphView) {
@@ -304,8 +305,45 @@ class HypergraphView {
         }
     }
 
+    postprocess() {
+        for (let e of Object.values(this._edges))
+            this._shortenEdge(e);
+        this.network.redraw();
+    }
+
     get _nodes() {  /** @oops */
         return (<any>this.network).body.nodes as {[id: string]: vis.Node}
+    }
+
+    get _edges() {  /** @oops */
+        return (<any>this.network).body.edges as {[id: string]: vis.Edge}
+    }
+
+    _drawingContext() {
+        var r = (<any>this.network).view,
+            ctx = r.canvas.getContext();
+        ctx.translate(r.body.view.translation.x, r.body.view.translation.y);
+        ctx.scale(r.body.view.scale, r.body.view.scale);
+        return ctx;
+    }
+
+    /**
+     * Makes edge start and end at node borders, instead of Vis.js's
+     * default, which is their centers.
+     * @param e renderer edge
+     * @oops this is using internal APIs and monkey-patching because the
+     *   EdgeType class hierarchy is not exposed.
+     */
+    _shortenEdge(e: vis.Edge) {
+        var shape = (<any>e).edgeType;  /** @oops internal API */
+        if (shape.constructor.name === 'StraightEdge') {
+            shape._drawLine = function(ctx: CanvasRenderingContext2D, val) {
+                this.fromPoint = this.getArrowData(ctx, 'from', null, false, false, val).point;
+                this.toPoint = this.getArrowData(ctx, 'to', null, false, false, val).point;
+                this.constructor.prototype._drawLine.call(this, ctx, val);
+            };
+        }
+        /** @todo not handling non-straight edges atm */
     }
 }
 
