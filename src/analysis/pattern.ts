@@ -5,6 +5,21 @@ import { Ast } from '../ide/panels/ast-panel';
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
+// @ts-ignore
+function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T, any, unknown>, map: (obj: T) => Generator<TResult, any, unknown>): Generator<TResult, any, unknown> {
+    for (let obj of arr) {
+        yield* map(obj);
+    }
+}
+
+// @ts-ignore
+function* lazyFilter<T>(arr: T[] | Generator<T, any, unknown>, filter: (obj: T) => boolean): Generator<T, any, unknown> {
+    for (let obj of arr) {
+        if (filter(obj)) {
+            yield obj;
+        }
+    }
+}
 
 
 class HMatcher<VData = any> {
@@ -16,27 +31,21 @@ class HMatcher<VData = any> {
 
     /**
      * Matches edges by label.
-     * @param label 
+     * @param label
      */
     l(label: LabelPat) {
-        const edges = this.g.edges, p = HMatcher.toLabelPred(label);
-        return new Matched(function *() {
-            for (let e of edges)
-                if (p(e.label)) yield e;
-        });
+        const p = HMatcher.toEdgePred(label);
+        return new Matched(() => lazyFilter(this.g.edges, p))
     }
 
     /**
      * Matches by edge source & label.
      * @param source start point
-     * @param label 
+     * @param label
      */
     sl(source: Vertex<VData>, label: LabelPat) {
-        var p = HMatcher.toLabelPred(label);
-        return new Matched(function *() {
-            for (let e of source.outgoing)
-                if (p(e.label)) yield e;
-        });
+        const p = HMatcher.toEdgePred(label);
+        return new Matched(() => lazyFilter(source.outgoing, p));
     }
 
     /**
@@ -45,17 +54,16 @@ class HMatcher<VData = any> {
      * @param label label(s) of all edges along path
      */
     lt_rtc(target: Vertex<VData>, label: LabelPat) {
-        var p = HMatcher.toLabelPred(label);
+        const p = HMatcher.toEdgePred(label);
         function *aux(v: Vertex) {
-            for (let e of v.incoming) {
-                if (p(e.label)) {
-                    var handled = yield e;
-                    if (!handled) {
-                        for (let u of e.sources) yield* aux(u);
-                    }
+            for (let e of lazyFilter(v.incoming, p)) {
+                const handled = yield e;
+                if (!handled) {
+                    yield* lazyFlatMap(e.sources, aux);
                 }
             }
         }
+
         return new Matched(() => aux(target));
     }
 
@@ -66,8 +74,14 @@ namespace HMatcher {
 
     export type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
     export type LabelPred = (l: string) => boolean
+    export type EdgePred = (e: Edge) => boolean
 
-    export function toLabelPred(l: LabelPat) {
+    export function toEdgePred(l: LabelPat): EdgePred {
+        const labelPred = toLabelPred(l);
+        return e => labelPred(e.label);
+    }
+
+    export function toLabelPred(l: LabelPat): LabelPred {
         if (typeof l == 'string') return (s: string) => s == l;
         else if (Array.isArray(l)) return (s: string) => l.includes(s);
         else if (l instanceof Set) return (s: string) => l.has(s);
