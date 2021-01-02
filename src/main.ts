@@ -9,13 +9,14 @@ import * as SetOps from './infra/setops';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
+import MatchDefinition = HMatcher.MatchDefinition;
 import { AstPanel } from './ide/panels/ast-panel';
 
 
 
 function semanticAnalysis_C(peg1: Hypergraph) {
     var peg2 = new Hypergraph();
-        
+
     peg2._max = peg1._max;
 
     const S = ['expression_statement'],
@@ -35,7 +36,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
 
     m.l('compound_statement').e(e => {
         m.sl(e.target, 'lscope').t(v => {
-            peg2.add([{label: 'lscope', 
+            peg2.add([{label: 'lscope',
                        sources: [e.sources[1]], target: v}]);
         })
     });
@@ -62,9 +63,9 @@ function semanticAnalysis_C(peg1: Hypergraph) {
             addIf1('next', lscopes[i], lscopes[i + 1]);
         }
     });
-    
+
     m.l('function_definition').e(e => {
-        addIf1('next', m.sl(e.target, 'lscope').t_first(), 
+        addIf1('next', m.sl(e.target, 'lscope').t_first(),
                        m.sl(e.sources[1], 'lscope').t_first());
     });
 
@@ -116,44 +117,44 @@ function semanticAnalysis_C(peg1: Hypergraph) {
     return peg2;
 }
 
-function semanticAnalysis_TS(peg1: Hypergraph) {
-    var peg2 = new Hypergraph();
+const SYNCAT = /* should be all syntactic edge types */
+    new Set(["SyntaxList", "PropertyAccessExpression", "CallExpression",
+        "VariableDeclaration", "VariableDeclarationList", "FirstStatement",
+        "BinaryExpression", "BreakStatement", "NewExpression",
+        "ThrowStatement", "IfStatement", "ExpressionStatement",
+        "Block", "WhileStatement", "MethodDeclaration"]);
+const SCOPES = ['ClassDeclaration', 'MethodDeclaration', 'Block'];
+const EXPRESSIONS = SetOps.diff(SYNCAT, SCOPES);
 
+/* u --(EXPRESSIONS)-->* v --(lscope)--> s */
+/*
+    m.l(EXPRESSIONS).t(u => {
+        m.sl_rtc(u, 'lscope').t(lscope => {
+            peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
+        });
+    });
+ */
+const NSCOPE_MATCH_DEFINITIONS: MatchDefinition[] = [
+    {labelPred: EXPRESSIONS},
+    {labelPred: 'lscope', through: "sources", modifier: "rtc"},
+];
+
+function semanticAnalysis_TS(peg1: Hypergraph) {
+    const peg2 = new Hypergraph();
     peg2._max = peg1._max;
 
-    var m = new HMatcher(peg1),
-        mm = new HMatcher.Memento;
+    const m = new HMatcher(peg1)
+    const mm = new HMatcher.Memento;
 
-    const SYNCAT = /* should be all syntactic edge types */
-           new Set(["SyntaxList", "PropertyAccessExpression", "CallExpression",
-                    "VariableDeclaration", "VariableDeclarationList", "FirstStatement",
-                    "BinaryExpression", "BreakStatement", "NewExpression",
-                    "ThrowStatement", "IfStatement", "ExpressionStatement",
-                    "Block", "WhileStatement", "MethodDeclaration"]),
-          SCOPES = ['ClassDeclaration', 'MethodDeclaration', 'Block'];
-
+    // Add lexical scope nodes
     m.l(SCOPES).t(u => {
         peg2.add([{label: 'lscope', sources: [u], target: -1}]);
     });
 
-    /* u --(SYNCAT - SCOPES)-->* v --(lscope)--> s */
-    m.l(SetOps.diff(SYNCAT, SCOPES)).t(u =>
-        m.sl(u, SYNCAT).t(v => 
-            m.sl(v, 'lscope').t(lscope => {
-                peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
-            })
-        )
-    );
-
-    m.l(SetOps.diff(SYNCAT, SCOPES)).t(u =>
-        m.sl(u, SYNCAT).t(v1 => 
-            m.sl(v1, SYNCAT).t(v2 => 
-                m.sl(v2, 'lscope').t(lscope => {
-                    peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
-                })
-            )
-        )
-    );
+    // Add edges from each expression to parent scopes
+    m.resolveMatchDefinitions(NSCOPE_MATCH_DEFINITIONS, ([u, lscope]) => {
+        peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
+    });
 
     return peg2;
 }
@@ -179,7 +180,7 @@ function main() {
 
         var peg1: Hypergraph, peg2: Hypergraph,
             nav: SourceNavigator;
-        
+
         function syntax() {
             peg1 = new Hypergraph().fromAst(ide.panels.ast.focused);
             peg2 = undefined;
@@ -217,8 +218,8 @@ function main() {
         //ide.addPanel(ide.panels.peg.showConfig());
 
         Object.assign(window, {ide, nav});
-    })    
-    
+    })
+
     Object.assign(window, {parser, Hypergraph});
 }
 
