@@ -9,7 +9,7 @@ import * as SetOps from './infra/setops';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
-import MatchDefinition = HMatcher.MatchDefinition;
+import PatternDefinition = HMatcher.PatternDefinition;
 import { AstPanel } from './ide/panels/ast-panel';
 
 
@@ -134,7 +134,7 @@ const EXPRESSIONS = SetOps.diff(SYNCAT, SCOPES);
         });
     });
  */
-const NSCOPE_MATCH_DEFINITIONS: MatchDefinition[] = [
+const NSCOPE_MATCH_DEFINITIONS: PatternDefinition[] = [
     {labelPred: EXPRESSIONS},
     {labelPred: 'lscope', through: "sources", modifier: "rtc"},
 ];
@@ -152,7 +152,7 @@ function semanticAnalysis_TS(peg1: Hypergraph) {
     });
 
     // Add edges from each expression to parent scopes
-    m.resolveMatchDefinitions(NSCOPE_MATCH_DEFINITIONS, ([u, lscope]) => {
+    m.resolvePatternDefinitions(NSCOPE_MATCH_DEFINITIONS, ([u, lscope]) => {
         peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
     });
 

@@ -90,10 +90,10 @@ class HMatcher<VData = any> {
     }
 
     /**
-     * Perform complex traversal via a list of MatchDefinition objects
+     * Perform complex traversal via a list of PatternDefinition objects
      * @param definitions how to traverse the graph
      */
-    resolveMatchDefinitions(definitions: HMatcher.MatchDefinition[], handler: (route: Vertex<VData>[]) => void) {
+    resolvePatternDefinitions(definitions: HMatcher.PatternDefinition[], handler: (route: Vertex<VData>[]) => void) {
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
         }
@@ -103,14 +103,14 @@ class HMatcher<VData = any> {
             throw new Error("First definition can only define `labelPred`")
         }
 
-        this.l(firstDefinition.labelPred).resolveMatchDefinitions(handler, restOfDefinitions);
+        this.l(firstDefinition.labelPred).resolvePatternDefinitions(handler, restOfDefinitions);
     }
 }
 
 
 namespace HMatcher {
 
-    export interface MatchDefinition {
+    export interface PatternDefinition {
         labelPred: LabelPat;  // Label matcher
         through?: "sources" | "targets";  // Traversal direction
         modifier?: "rtc"; // Traversal type
@@ -169,7 +169,7 @@ namespace HMatcher {
         t_first() { return this.first(e => e.target); }
         s_first(idx: number = 0) { return this.first(e => e.sources[idx]); }
 
-        resolveMatchDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: MatchDefinition[], route?: Vertex<VData>[]) {
+        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], route?: Vertex<VData>[]) {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
 
             this.t(u => {
@@ -193,7 +193,7 @@ namespace HMatcher {
                 }
 
                 const subquery: Matched<VData> = this.matcher[method](u, labelPred);
-                subquery.resolveMatchDefinitions(handler, restOfDefinitions, extendedRoute);
+                subquery.resolvePatternDefinitions(handler, restOfDefinitions, extendedRoute);
             });
         }
     }
