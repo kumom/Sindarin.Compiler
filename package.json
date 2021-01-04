@@ -3,9 +3,10 @@
     "version": "0.1.0",
     "main": "dist/index.html",
     "scripts": {
-        "build": "parcel build src/index.html",
+        "build": "parcel build --no-minify src/index.html",
         "watch": "parcel watch --public-url=. --hmr-hostname=localhost src/index.html",
         "start": "nw&",
+        "start:dev": "concurrently 'npm run watch' 'npm start'",
         "qa:build-mujs": "kremlin data/typescript/net-server.ts && babel build/kremlin/net-server.js > build/kremlin/net-server.mu.js"
     },
     "dependencies": {

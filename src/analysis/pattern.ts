@@ -5,7 +5,21 @@ import { Ast } from '../ide/panels/ast-panel';
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
+// @ts-ignore
+function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T, any, unknown>, map: (obj: T) => Generator<TResult, any, unknown>): Generator<TResult, any, unknown> {
+    for (let obj of arr) {
+        yield* map(obj);
+    }
+}
 
+// @ts-ignore
+function* lazyFilter<T>(arr: T[] | Generator<T, any, unknown>, filter: (obj: T) => boolean): Generator<T, any, unknown> {
+    for (let obj of arr) {
+        if (filter(obj)) {
+            yield obj;
+        }
+    }
+}
 
 class HMatcher<VData = any> {
     g: Hypergraph<VData>
@@ -14,29 +28,27 @@ class HMatcher<VData = any> {
         this.g = g;
     }
 
+    private _matched(genf: () => Generator<Edge>) {
+        return new Matched(this, genf);
+    }
+
     /**
      * Matches edges by label.
-     * @param label 
+     * @param label
      */
     l(label: LabelPat) {
-        const edges = this.g.edges, p = HMatcher.toLabelPred(label);
-        return new Matched(function *() {
-            for (let e of edges)
-                if (p(e.label)) yield e;
-        });
+        const p = HMatcher.toEdgePred(label);
+        return this._matched(() => lazyFilter(this.g.edges, p))
     }
 
     /**
      * Matches by edge source & label.
      * @param source start point
-     * @param label 
+     * @param label
      */
     sl(source: Vertex<VData>, label: LabelPat) {
-        var p = HMatcher.toLabelPred(label);
-        return new Matched(function *() {
-            for (let e of source.outgoing)
-                if (p(e.label)) yield e;
-        });
+        const p = HMatcher.toEdgePred(label);
+        return this._matched(() => lazyFilter(source.outgoing, p));
     }
 
     /**
@@ -45,29 +57,80 @@ class HMatcher<VData = any> {
      * @param label label(s) of all edges along path
      */
     lt_rtc(target: Vertex<VData>, label: LabelPat) {
-        var p = HMatcher.toLabelPred(label);
+        const p = HMatcher.toEdgePred(label);
         function *aux(v: Vertex) {
             for (let e of v.incoming) {
-                if (p(e.label)) {
-                    var handled = yield e;
-                    if (!handled) {
-                        for (let u of e.sources) yield* aux(u);
-                    }
+                const handled = p(e) ? yield e : false;
+                if (!handled) {
+                    yield* lazyFlatMap(e.sources, aux);
                 }
             }
         }
-        return new Matched(() => aux(target));
+
+        return this._matched(() => aux(target));
     }
 
+    /**
+     * Matches by edge source & label -- reflexive-transitive.
+     * @param source start point
+     * @param label label(s) of all edges along path
+     */
+    sl_rtc(source: Vertex<VData>, label: LabelPat) {
+        const p = HMatcher.toEdgePred(label);
+        function *aux(v: Vertex) {
+            for (let e of v.outgoing) {
+                const handled = p(e) ? yield e : false;
+                if (!handled) {
+                    yield* aux(e.target);
+                }
+            }
+        }
+
+        return this._matched(() => aux(source));
+    }
+
+    /**
+     * Perform complex traversal via a list of PatternDefinition objects
+     * @param definitions how to traverse the graph
+     */
+    resolvePatternDefinitions(definitions: HMatcher.PatternDefinition[], handler: (route: Vertex<VData>[]) => void) {
+        if (!definitions || !definitions.length) {
+            throw new Error("Cannot resolve match without definitions");
+        }
+
+        const [firstDefinition, ...restOfDefinitions] = definitions;
+        if (firstDefinition.through || firstDefinition.modifier) {
+            throw new Error("First definition can only define `labelPred`")
+        }
+
+        this.l(firstDefinition.labelPred).resolvePatternDefinitions(handler, restOfDefinitions);
+    }
 }
 
 
 namespace HMatcher {
 
+    export interface PatternDefinition {
+        labelPred: LabelPat;  // Label matcher
+        through?: "sources" | "targets";  // Traversal direction
+        modifier?: "rtc"; // Traversal type
+    }
+
+    const THROUGH_TO_METHOD = {
+        "sources": "sl",
+        "targets": "lt",
+    };
+
     export type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
     export type LabelPred = (l: string) => boolean
+    export type EdgePred = (e: Edge) => boolean
 
-    export function toLabelPred(l: LabelPat) {
+    export function toEdgePred(l: LabelPat): EdgePred {
+        const labelPred = toLabelPred(l);
+        return e => labelPred(e.label);
+    }
+
+    export function toLabelPred(l: LabelPat): LabelPred {
         if (typeof l == 'string') return (s: string) => s == l;
         else if (Array.isArray(l)) return (s: string) => l.includes(s);
         else if (l instanceof Set) return (s: string) => l.has(s);
@@ -78,8 +141,11 @@ namespace HMatcher {
     export const LANY: LabelPat = () => true;
 
     export class Matched<VData = any> {
-        gen: Generator<Edge>
-        constructor(genf: () => Generator<Edge>) {
+        matcher: HMatcher<VData>;
+        gen: Generator<Edge>;
+
+        constructor(matcher: HMatcher<VData>, genf: () => Generator<Edge>) {
+            this.matcher = matcher;
             this.gen = genf();
         }
         e(cont: (e:Edge) => void | boolean) {  // iterates edges
@@ -102,6 +168,34 @@ namespace HMatcher {
         }
         t_first() { return this.first(e => e.target); }
         s_first(idx: number = 0) { return this.first(e => e.sources[idx]); }
+
+        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], route?: Vertex<VData>[]) {
+            const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
+
+            this.t(u => {
+                const extendedRoute = route ? [...route, u] : [u];
+
+                if (!nextDefinition) {
+                    handler(extendedRoute);
+                    return;
+                }
+
+                if (!nextDefinition.through) {
+                    throw new Error("Inner match definitions must define `through`");
+                }
+
+                const { labelPred, through, modifier } = nextDefinition;
+                const methodBase = THROUGH_TO_METHOD[through];
+                const method = modifier ? `${methodBase}_${modifier}` : methodBase;
+
+                if (!this.matcher[method]) {
+                    throw new Error(`Method ${method} does not exist on HMatcher`);
+                }
+
+                const subquery: Matched<VData> = this.matcher[method](u, labelPred);
+                subquery.resolvePatternDefinitions(handler, restOfDefinitions, extendedRoute);
+            });
+        }
     }
 
     export class Memento {
@@ -109,7 +203,7 @@ namespace HMatcher {
 
         e(key: string) {
             const self = this;
-            return <VData>(m: Matched<VData>) => new Matched<VData>(function* () {
+            return <VData>(m: Matched<VData>) => new Matched<VData>(m.matcher, function* () {
                 for (let e of m.gen) { self.edges[key] = e; yield e; }
             });
         }
@@ -148,7 +242,6 @@ namespace HMatcher {
 
 import LabelPat = HMatcher.LabelPat;
 import Matched = HMatcher.Matched;
-
 
 
 export { HMatcher }
