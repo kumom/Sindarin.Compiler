@@ -36,8 +36,8 @@ class HMatcher<VData = any> {
      * @param label
      */
     l(label: LabelPat) {
-        const p = HMatcher.toEdgePred(label);
-        return this._matched(() => lazyFilter(this.g.edges, p))
+        const p = HMatcher.toObjectWithLabel(label);
+        return this._matched(() => lazyFilter<Edge>(this.g.edges, p))
     }
 
     /**
@@ -58,31 +58,21 @@ class HMatcher<VData = any> {
      * @param label
      */
     sl(source: Vertex<VData>, label: LabelPat) {
-        const p = HMatcher.toEdgePred(label);
-        return this._matched(() => lazyFilter(source.outgoing, p));
-    }
-
-    /**
-     * Matches by edge source & label. (but only the first one, if it matches)
-     * @param source start point
-     * @param label
-     */
-    sl_first(source: Vertex<VData>, label: LabelPat) {
-        const p = HMatcher.toEdgePred(label);
-        return this._matched(() => lazyFilter(source.outgoing.slice(0, 1), p));
+        const p = HMatcher.toObjectWithLabel(label);
+        return this._matched(() => lazyFilter<Edge>(source.outgoing, p));
     }
 
     /**
      * Matches by edge label & target -- reflexive-transitive.
      * @param target path end point
-     * @param label label(s) of all edges along path
+     * @param label label(s) of final edge
      */
     lt_rtc(target: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
-        const p = HMatcher.toEdgePred(label);
-        const pExclude = HMatcher.toEdgePred(excluding, { negate: true });
+        const p = HMatcher.toObjectWithLabel(label);
+        const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
 
         function* aux(v: Vertex) {
-            for (let e of lazyFilter(v.incoming, pExclude)) {
+            for (let e of lazyFilter<Edge>(v.incoming, pExclude)) {
                 const handled = p(e) ? yield e : false;
                 if (!handled) {
                     yield* lazyFlatMap(e.sources, aux);
@@ -96,14 +86,14 @@ class HMatcher<VData = any> {
     /**
      * Matches by edge source & label -- reflexive-transitive.
      * @param source start point
-     * @param label label(s) of all edges along path
+     * @param label label(s) of final edge
      */
     sl_rtc(source: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
-        const p = HMatcher.toEdgePred(label);
-        const pExclude = HMatcher.toEdgePred(excluding, { negate: true });
+        const p = HMatcher.toObjectWithLabel(label);
+        const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
 
         function* aux(v: Vertex) {
-            for (let e of lazyFilter(v.outgoing, pExclude)) {
+            for (let e of lazyFilter<Edge>(v.outgoing, pExclude)) {
                 const handled = p(e) ? yield e : false;
                 if (!handled) {
                     yield* aux(e.target);
@@ -131,7 +121,8 @@ class HMatcher<VData = any> {
         }
 
         const startingSet = vertex ? this.v(vertex) : this.l(labelPred);
-        startingSet.resolvePatternDefinitions(handler, restOfDefinitions);
+        const vertexLabelPat = vertex ? vertex.label : null;
+        startingSet.resolvePatternDefinitions(handler, restOfDefinitions, vertexLabelPat);
     }
 }
 
@@ -143,8 +134,9 @@ namespace HMatcher {
         vertex?: Vertex; // For first definition only!
 
         through?: "sources" | "targets";  // Traversal direction
-        modifier?: "rtc" | "first"; // Traversal type
+        modifier?: "rtc"; // Traversal type
         excluding?: LabelPat; // Exclude labels
+        vertexLabelPat?: LabelPat; // Filter for vertices label
     }
 
     const THROUGH_TO_METHOD = {
@@ -154,17 +146,17 @@ namespace HMatcher {
 
     export type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
     export type LabelPred = (l: string) => boolean
-    export type EdgePred = (e: Edge) => boolean
+    export type ObjectWithLabel = (obj: { label: string }) => boolean
 
-    interface EdgePredOptions {
+    interface ObjectWithLabelPredOptions {
         negate?: boolean;
     }
 
-    export function toEdgePred(l: LabelPat, options?: EdgePredOptions): EdgePred {
+    export function toObjectWithLabel(l: LabelPat, options?: ObjectWithLabelPredOptions): ObjectWithLabel {
         if (options?.negate) {
             const { negate, ...rest } = options;
-            const edgePred = this.toEdgePred(l, rest);
-            return e => !edgePred(e);
+            const innerPred = this.toObjectWithLabel(l, rest);
+            return e => !innerPred(e);
         }
 
         if (!l) {
@@ -184,6 +176,7 @@ namespace HMatcher {
     }
 
     export const LANY: LabelPat = () => true;
+    export const LANY_LABEL: ObjectWithLabel = () => true;
 
     export class Matched<VData = any> {
         matcher: HMatcher<VData>;
@@ -198,13 +191,15 @@ namespace HMatcher {
             for (let e of this.gen) cont(e)
         }
 
-        t(cont: (t: Vertex<VData>) => void | boolean) {  // iterates edge targets
-            this.e(e => cont(e.target));
+        t(cont: (t: Vertex<VData>) => void | boolean, labelPat?: LabelPat) {  // iterates edge targets
+            const p = !labelPat ? LANY_LABEL : toObjectWithLabel(labelPat);
+            this.e(e => p(e.target) && cont(e.target));
         }
 
-        s(cont: (t: Vertex<VData>) => void | boolean) {  // iterates edge sources
+        s(cont: (t: Vertex<VData>) => void | boolean, labelPat?: LabelPat) {  // iterates edge sources
+            const p = !labelPat ? LANY_LABEL : toObjectWithLabel(labelPat);
             this.e(e => {
-                for (let u of e.sources) cont(u);
+                for (let u of lazyFilter<Vertex>(e.sources, p)) cont(u);
             });
         }
 
@@ -230,19 +225,14 @@ namespace HMatcher {
             return this.first(e => e.sources[idx]);
         }
 
-        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], route?: Vertex<VData>[]) {
+        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], vertexLabelPat: LabelPat, route?: Vertex<VData>[]) {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
+            const {labelPred, vertex, through, modifier, excluding} = nextDefinition || {};
 
-            this.t(u => {
-                const extendedRoute = route ? [...route, u] : [u];
+            const methodBase = THROUGH_TO_METHOD[through];
+            const method = modifier ? `${methodBase}_${modifier}` : methodBase;
 
-                if (!nextDefinition) {
-                    handler(extendedRoute);
-                    return;
-                }
-
-                const {labelPred, vertex, through, modifier, excluding} = nextDefinition;
-
+            if (nextDefinition) {
                 if (vertex) {
                     throw new Error("Inner match definitions cannot define `vertex`");
                 }
@@ -255,16 +245,28 @@ namespace HMatcher {
                     throw new Error("Inner match definitions must be `rtc` to define `excluding`");
                 }
 
-                const methodBase = THROUGH_TO_METHOD[through];
-                const method = modifier ? `${methodBase}_${modifier}` : methodBase;
-
                 if (!this.matcher[method]) {
                     throw new Error(`Method ${method} does not exist on HMatcher`);
                 }
+            }
+
+            const routeHandler = (u) => {
+                const extendedRoute = route ? [...route, u] : [u];
+
+                if (!nextDefinition) {
+                    handler(extendedRoute);
+                    return;
+                }
 
                 const subquery: Matched<VData> = this.matcher[method](u, labelPred, excluding);
-                subquery.resolvePatternDefinitions(handler, restOfDefinitions, extendedRoute);
-            });
+                subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextDefinition.vertexLabelPat, extendedRoute);
+            };
+
+            if (nextDefinition === "sources") {
+                this.t(routeHandler, vertexLabelPat);
+            } else {  // also NULL
+                this.s(routeHandler, vertexLabelPat);
+            }
         }
     }
 

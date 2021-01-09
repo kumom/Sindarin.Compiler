@@ -23,34 +23,44 @@ export function resolveLexicalScope<VData>(peg: Hypergraph<VData>, vertex: Verte
 
     const m = new HMatcher(peg);
 
+    const DEFINITION_LABEL = 'DEFINITION';
+    const {label} = vertex;
+
     const patternDefinition: PatternDefinition[] = [
         {   // Start with our vertex
             vertex,
+            vertexLabelPat: label,
         },
         {   // Find all scopes it is defined under
             labelPred: SCOPES,
-            through: "targets",
+            through: "sources",
             modifier: "rtc",
+            excluding: DEFINITION_LABEL,
         },
         {   // For each scope, find the variables declared (in this scope only) (TODO: this + arguments)
             labelPred: VARIABLE_DECLARATION,
-            through: "sources",
+            through: "targets",
             modifier: "rtc",
-            excluding: SCOPES,
+            excluding: [...SCOPES, DEFINITION_LABEL],
+            vertexLabelPat: label,
         },
-        {   // For each variable declaration, only take those that define our param
-            // TODO: for assignment it's the first, but this is not always the case (e.g. arg, this)
-            labelPred: vertex.label,
-            through: "sources",
-            modifier: "first",
-        }
     ];
+
+    const visited = new Set();
 
     m.resolvePatternDefinitions(patternDefinition, (route) => {
         const [use, ...rest] = route;
         const def = rest.pop();
 
-        scopeResolutionPeg.add([{label: 'DEFINITION', sources: [use], target: def}]);
+        const key = `${use.id}|${def.id}`;
+
+        // Key exists - TODO: make this automatic?
+        if (visited.has(key) || vertex.outgoing.find(({label, target}) => label === DEFINITION_LABEL && target.id === def.id)) {
+            return;
+        }
+
+        visited.add(key);
+        scopeResolutionPeg.add([{label: DEFINITION_LABEL, sources: [use], target: def}]);
     });
 
     return scopeResolutionPeg;

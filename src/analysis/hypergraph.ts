@@ -115,7 +115,7 @@ class Hypergraph<VData = any> {
         return u;
     }
 
-    toVis() {
+    toVis(edgeNodeProfile = null) {
         var nodes = new vis.DataSet<vis.Node>(
             [...this.vertices.values()].map(u => {
                 return {id: u.id, label: u.label || `${u.id}`, shape: 'box',
@@ -127,7 +127,7 @@ class Hypergraph<VData = any> {
         var edges = new vis.DataSet<vis.Edge>([]);
 
         for (let e of this.edges) {
-            var ve = e.toVis();
+            var ve = e.toVis(edgeNodeProfile);
             nodes.add(ve.nodes);
             edges.add(ve.edges);
         }
@@ -165,10 +165,12 @@ namespace Hypergraph {
             this.target = target;
         }
         get incident() { return [this.target, ...this.sources]; }
-        toVis() {
+        toVis(edgeNodeProfile = null) {
+            edgeNodeProfile = edgeNodeProfile || NUCLEUS;
+
             var nucleus = uuid.v1(),
                 nodes: vis.Node[] = [
-                    {id: nucleus, label: this.label, ...NUCLEUS},
+                    {id: nucleus, label: this.label, ...edgeNodeProfile},
                 ],
                 edges: vis.Edge[] = [
                     {from: nucleus, to: this.target.id, ...TO},
@@ -366,23 +368,27 @@ class HypergraphView {
         /** @todo not handling non-straight edges atm */
     }
 
-    overlay(peg: Hypergraph) {
-        const overlayView = peg.toVis();
-        this.nail(); this.fade();
+    overlay(peg: Hypergraph, disableBase = true, edgeNodeProfile = null,) {
+        const overlayView = peg.toVis(edgeNodeProfile);
+        this.nail();
+
+        if (disableBase) {
+            this.fade();
+        }
+
         setTimeout(() => this.merge(overlayView), 1);
     }
 
-    _onNodeSelected({ nodes}: VisSelectionEventArgs) {
+    _onNodeSelected({nodes}: VisSelectionEventArgs) {
         if (nodes.length !== 1) {
             throw new Error("Umm... not yet :-)")
         }
 
-        const x = this.data.nodes.get(nodes)[0];
-        debugger;
-        const vertex = null;
+        const vertices = nodes.map(parseInt).map(id => this.peg.vertices.get(id));
+        const vertex = vertices[0];
 
         const scopeResolutionPeg = resolveLexicalScope(this.peg, vertex);
-        this.overlay(scopeResolutionPeg);
+        this.overlay(scopeResolutionPeg, false, {shape: 'box', color: '#ca2340', shapeProperties: {borderRadius: 99}});
     }
 
     _onNodeDeselected({ previousSelection}: VisSelectionEventArgs) {
