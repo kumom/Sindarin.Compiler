@@ -134,7 +134,7 @@ const EXPRESSIONS = SetOps.diff(SYNCAT, SCOPES);
         });
     });
  */
-const NSCOPE_MATCH_DEFINITIONS: PatternDefinition[] = [
+const NSCOPE_PATTERN_DEFINITIONS: PatternDefinition[] = [
     {labelPred: EXPRESSIONS},
     {labelPred: 'lscope', through: "sources", modifier: "rtc"},
 ];
@@ -152,7 +152,7 @@ function semanticAnalysis_TS(peg1: Hypergraph) {
     });
 
     // Add edges from each expression to parent scopes
-    m.resolvePatternDefinitions(NSCOPE_MATCH_DEFINITIONS, ([u, lscope]) => {
+    m.resolvePatternDefinitions(NSCOPE_PATTERN_DEFINITIONS, ([u, lscope]) => {
         peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
     });
 
