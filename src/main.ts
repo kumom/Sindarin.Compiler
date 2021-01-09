@@ -1,17 +1,17 @@
+import {C99Parser} from './syntax/c99';
+import {TypeScriptParser} from './syntax/typescript-ast';
+import {IDE} from './ide/ide';
 
-import { C99Parser } from './syntax/c99';
-import { TypeScriptParser } from './syntax/typescript-ast';
-import { IDE } from './ide/ide';
-
-import { Hypergraph } from './analysis/hypergraph';
-import { HMatcher } from './analysis/pattern';
+import {Hypergraph} from './analysis/hypergraph';
+import {HMatcher} from './analysis/pattern';
 import * as SetOps from './infra/setops';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 import PatternDefinition = HMatcher.PatternDefinition;
-import { AstPanel } from './ide/panels/ast-panel';
-
+import {AstPanel} from './ide/panels/ast-panel';
+import {SCOPES} from "./analysis/syntax";
+import {NSCOPE_PATTERN_DEFINITIONS} from "./analysis/semantics";
 
 
 function semanticAnalysis_C(peg1: Hypergraph) {
@@ -20,10 +20,10 @@ function semanticAnalysis_C(peg1: Hypergraph) {
     peg2._max = peg1._max;
 
     const S = ['expression_statement'],
-          L = ['expression_statement', 'function_definition',
-               'declaration', 'parameter_declaration', 'direct_declarator',
-               'compound_statement', 'iteration_statement',
-               'selection_statement', 'iteration_statement'];
+        L = ['expression_statement', 'function_definition',
+            'declaration', 'parameter_declaration', 'direct_declarator',
+            'compound_statement', 'iteration_statement',
+            'selection_statement', 'iteration_statement'];
 
     var m = new HMatcher(peg1);
 
@@ -36,15 +36,19 @@ function semanticAnalysis_C(peg1: Hypergraph) {
 
     m.l('compound_statement').e(e => {
         m.sl(e.target, 'lscope').t(v => {
-            peg2.add([{label: 'lscope',
-                       sources: [e.sources[1]], target: v}]);
+            peg2.add([{
+                label: 'lscope',
+                sources: [e.sources[1]], target: v
+            }]);
         })
     });
     m.l('direct_declarator').e(e => {
         if (e.sources[1] && e.sources[1].label == '(')
             m.sl(e.target, 'lscope').t(v => {
-                peg2.add([{label: 'lscope',
-                           sources: [e.sources[2]], target: v}]);
+                peg2.add([{
+                    label: 'lscope',
+                    sources: [e.sources[2]], target: v
+                }]);
             })
     });
 
@@ -66,7 +70,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
 
     m.l('function_definition').e(e => {
         addIf1('next', m.sl(e.target, 'lscope').t_first(),
-                       m.sl(e.sources[1], 'lscope').t_first());
+            m.sl(e.sources[1], 'lscope').t_first());
     });
 
     m.l('parameter_list').e(e => {
@@ -90,7 +94,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
         switch (e.sources[0].label) {
             case 'if':
                 var [u, v1, v2] = [e.target, e.sources[4], e.sources[6]]
-                                  .map(u => m.sl(u, 'lscope').t_first());
+                    .map(u => m.sl(u, 'lscope').t_first());
                 addIf1('id', u, v1);
                 addIf1('id', u, v2);
                 break;
@@ -101,7 +105,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
         switch (e.sources[0].label) {
             case 'while':
                 var [u, v] = [e.target, e.sources[4]]
-                             .map(u => m.sl(u, 'lscope').t_first());
+                    .map(u => m.sl(u, 'lscope').t_first());
                 addIf1('id', u, v);
                 break;
         }
@@ -117,33 +121,11 @@ function semanticAnalysis_C(peg1: Hypergraph) {
     return peg2;
 }
 
-const SYNCAT = /* should be all syntactic edge types */
-    new Set(["SyntaxList", "PropertyAccessExpression", "CallExpression",
-        "VariableDeclaration", "VariableDeclarationList", "FirstStatement",
-        "BinaryExpression", "BreakStatement", "NewExpression",
-        "ThrowStatement", "IfStatement", "ExpressionStatement",
-        "Block", "WhileStatement", "MethodDeclaration"]);
-const SCOPES = ['ClassDeclaration', 'MethodDeclaration', 'Block'];
-const EXPRESSIONS = SetOps.diff(SYNCAT, SCOPES);
-
-/* u --(EXPRESSIONS)-->* v --(lscope)--> s */
-/*
-    m.l(EXPRESSIONS).t(u => {
-        m.sl_rtc(u, 'lscope').t(lscope => {
-            peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
-        });
-    });
- */
-const NSCOPE_PATTERN_DEFINITIONS: PatternDefinition[] = [
-    {labelPred: EXPRESSIONS},
-    {labelPred: 'lscope', through: "sources", modifier: "rtc"},
-];
-
 function semanticAnalysis_TS(peg1: Hypergraph) {
     const peg2 = new Hypergraph();
     peg2._max = peg1._max;
 
-    const m = new HMatcher(peg1)
+    const m = new HMatcher(peg1);
     const mm = new HMatcher.Memento;
 
     // Add lexical scope nodes
@@ -162,7 +144,7 @@ function semanticAnalysis_TS(peg1: Hypergraph) {
 
 function main() {
     const parser = new TypeScriptParser();  /** @todo select parser by program */
-               //  new C99Parser();
+    //  new C99Parser();
 
     requestAnimationFrame(async () => {
         var ide = new IDE();
@@ -208,10 +190,14 @@ function main() {
 
         //ide.panels.peg.view.network.once('stabilized', semantics);
 
-        function onaction(action: {type: string}) {
+        function onaction(action: { type: string }) {
             switch (action.type) {
-                case 'syntax': syntax(); break;
-                case 'semantics': semantics(); break;
+                case 'syntax':
+                    syntax();
+                    break;
+                case 'semantics':
+                    semantics();
+                    break;
             }
         }
 
@@ -248,14 +234,15 @@ class SourceNavigator {
         var m = new HMatcher(this.peg), mm = new HMatcher.Memento,
             res = [];
         mm.e('e')(m.l(declType)).s(ID(HMatcher.byLabel(name)(() => {
-                res.push(mm.edges['e'].target.data.ast);
-            })));
+            res.push(mm.edges['e'].target.data.ast);
+        })));
         if (res[0]) this.ast.focus(res[0]);
     }
 
     gotoClass(name: string) {
         this.gotoDecl('ClassDeclaration', name);
     }
+
     gotoMethod(name: string) {
         this.gotoDecl('MethodDeclaration', name);
     }

@@ -1,6 +1,7 @@
 import * as uuid from 'uuid';
 import * as vis from 'vis-metapkg';
 import { Ast } from '../ide/panels/ast-panel';
+import {resolveLexicalScope} from "./semantics";
 
 
 
@@ -26,7 +27,7 @@ class Hypergraph<VData = any> {
         var vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>>(),
             get = (u: Hypergraph.VertexId | Hypergraph.Vertex<VData>) => {
                 if (typeof u === 'number') {
-                    if (u > 0) return this._get(u);                    
+                    if (u > 0) return this._get(u);
                     else {
                         var v = vmap.get(u);
                         if (!v) { v = this._fresh(); vmap.set(u, v); }
@@ -121,17 +122,17 @@ class Hypergraph<VData = any> {
                         ...(u.label ? LIT : {})};
             })
         );
-        
+
         // Collect edges
         var edges = new vis.DataSet<vis.Edge>([]);
-        
+
         for (let e of this.edges) {
             var ve = e.toVis();
             nodes.add(ve.nodes);
             edges.add(ve.edges);
         }
 
-        return new HypergraphView({
+        return new HypergraphView(this, {
             nodes: nodes,
             edges: edges
         });
@@ -189,7 +190,7 @@ const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99
       TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
       LIT = {color: '#9d9', shapeProperties: {borderRadius: 0}},
-      FAINT = {color: {background: '#ddd', border: '#bbb', 
+      FAINT = {color: {background: '#ddd', border: '#bbb',
                        highlight: {background: '#ddd', border: '#bbb'}},
                font: {color: '#ccc'}, opacity: 0.5},
       HIE = {
@@ -213,10 +214,23 @@ const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99
       };
 
 
+interface VisSelection {
+    edges: string[];
+    nodes: Array<string | number>;
+}
+
+interface VisSelectionEventArgs extends VisSelection {
+    event: any;
+    pointer: any;
+    previousSelection?: VisSelection;
+}
+
 
 class HypergraphView {
 
-    data: HypergraphView.Data
+    peg: Hypergraph;
+    data: HypergraphView.Data;
+
     options: vis.Options = {
         layout: {
             improvedLayout: false,
@@ -229,12 +243,18 @@ class HypergraphView {
     };
     network: vis.Network
 
-    constructor(data: HypergraphView.Data) {
+    constructor(peg: Hypergraph, data: HypergraphView.Data) {
+        this.peg = peg;
         this.data = data;
     }
 
     render(on: HTMLElement) {
         this.network = new vis.Network(on, this.data, this.options);
+
+        // TODO: off
+        this.network.on('selectNode', this._onNodeSelected.bind(this));
+        this.network.on('deselectNode', this._onNodeDeselected.bind(this));
+
         return this;
     }
 
@@ -345,6 +365,29 @@ class HypergraphView {
         }
         /** @todo not handling non-straight edges atm */
     }
+
+    overlay(peg: Hypergraph) {
+        const overlayView = peg.toVis();
+        this.nail(); this.fade();
+        setTimeout(() => this.merge(overlayView), 1);
+    }
+
+    _onNodeSelected({ nodes}: VisSelectionEventArgs) {
+        if (nodes.length !== 1) {
+            throw new Error("Umm... not yet :-)")
+        }
+
+        const x = this.data.nodes.get(nodes)[0];
+        debugger;
+        const vertex = null;
+
+        const scopeResolutionPeg = resolveLexicalScope(this.peg, vertex);
+        this.overlay(scopeResolutionPeg);
+    }
+
+    _onNodeDeselected({ previousSelection}: VisSelectionEventArgs) {
+
+    }
 }
 
 
@@ -354,7 +397,7 @@ namespace HypergraphView {
         nodes: vis.DataSet<vis.Node, 'id'>
         edges: vis.DataSet<vis.Edge, 'id'>
     };
-      
+
 }
 
 

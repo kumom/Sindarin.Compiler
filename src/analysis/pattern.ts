@@ -1,6 +1,5 @@
-
-import { Hypergraph } from './hypergraph';
-import { Ast } from '../ide/panels/ast-panel';
+import {Hypergraph} from './hypergraph';
+import {Ast} from '../ide/panels/ast-panel';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
@@ -42,6 +41,18 @@ class HMatcher<VData = any> {
     }
 
     /**
+     * Matches a specific vertex, and yields outgoing edges
+     * @param v
+     */
+    v(v: Vertex<VData>) {
+        function* aux() {
+            yield* v.outgoing;
+        }
+
+        return this._matched(() => aux());
+    }
+
+    /**
      * Matches by edge source & label.
      * @param source start point
      * @param label
@@ -52,14 +63,26 @@ class HMatcher<VData = any> {
     }
 
     /**
+     * Matches by edge source & label. (but only the first one, if it matches)
+     * @param source start point
+     * @param label
+     */
+    sl_first(source: Vertex<VData>, label: LabelPat) {
+        const p = HMatcher.toEdgePred(label);
+        return this._matched(() => lazyFilter(source.outgoing.slice(0, 1), p));
+    }
+
+    /**
      * Matches by edge label & target -- reflexive-transitive.
      * @param target path end point
      * @param label label(s) of all edges along path
      */
-    lt_rtc(target: Vertex<VData>, label: LabelPat) {
+    lt_rtc(target: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toEdgePred(label);
-        function *aux(v: Vertex) {
-            for (let e of v.incoming) {
+        const pExclude = HMatcher.toEdgePred(excluding, { negate: true });
+
+        function* aux(v: Vertex) {
+            for (let e of lazyFilter(v.incoming, pExclude)) {
                 const handled = p(e) ? yield e : false;
                 if (!handled) {
                     yield* lazyFlatMap(e.sources, aux);
@@ -75,10 +98,12 @@ class HMatcher<VData = any> {
      * @param source start point
      * @param label label(s) of all edges along path
      */
-    sl_rtc(source: Vertex<VData>, label: LabelPat) {
+    sl_rtc(source: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toEdgePred(label);
-        function *aux(v: Vertex) {
-            for (let e of v.outgoing) {
+        const pExclude = HMatcher.toEdgePred(excluding, { negate: true });
+
+        function* aux(v: Vertex) {
+            for (let e of lazyFilter(v.outgoing, pExclude)) {
                 const handled = p(e) ? yield e : false;
                 if (!handled) {
                     yield* aux(e.target);
@@ -99,11 +124,14 @@ class HMatcher<VData = any> {
         }
 
         const [firstDefinition, ...restOfDefinitions] = definitions;
-        if (firstDefinition.through || firstDefinition.modifier) {
-            throw new Error("First definition can only define `labelPred`")
+
+        const {labelPred, vertex, through, modifier, excluding} = firstDefinition;
+        if (through || modifier || excluding) {
+            throw new Error("First definition can only define `labelPred` or `vertex`")
         }
 
-        this.l(firstDefinition.labelPred).resolvePatternDefinitions(handler, restOfDefinitions);
+        const startingSet = vertex ? this.v(vertex) : this.l(labelPred);
+        startingSet.resolvePatternDefinitions(handler, restOfDefinitions);
     }
 }
 
@@ -111,9 +139,12 @@ class HMatcher<VData = any> {
 namespace HMatcher {
 
     export interface PatternDefinition {
-        labelPred: LabelPat;  // Label matcher
+        labelPred?: LabelPat;  // Label matcher
+        vertex?: Vertex; // For first definition only!
+
         through?: "sources" | "targets";  // Traversal direction
-        modifier?: "rtc"; // Traversal type
+        modifier?: "rtc" | "first"; // Traversal type
+        excluding?: LabelPat; // Exclude labels
     }
 
     const THROUGH_TO_METHOD = {
@@ -125,7 +156,21 @@ namespace HMatcher {
     export type LabelPred = (l: string) => boolean
     export type EdgePred = (e: Edge) => boolean
 
-    export function toEdgePred(l: LabelPat): EdgePred {
+    interface EdgePredOptions {
+        negate?: boolean;
+    }
+
+    export function toEdgePred(l: LabelPat, options?: EdgePredOptions): EdgePred {
+        if (options?.negate) {
+            const { negate, ...rest } = options;
+            const edgePred = this.toEdgePred(l, rest);
+            return e => !edgePred(e);
+        }
+
+        if (!l) {
+            return () => false;
+        }
+
         const labelPred = toLabelPred(l);
         return e => labelPred(e.label);
     }
@@ -148,26 +193,42 @@ namespace HMatcher {
             this.matcher = matcher;
             this.gen = genf();
         }
-        e(cont: (e:Edge) => void | boolean) {  // iterates edges
+
+        e(cont: (e: Edge) => void | boolean) {  // iterates edges
             for (let e of this.gen) cont(e)
         }
-        t(cont: (t:Vertex<VData>) => void | boolean) {  // iterates edge targets
+
+        t(cont: (t: Vertex<VData>) => void | boolean) {  // iterates edge targets
             this.e(e => cont(e.target));
         }
-        s(cont: (t:Vertex<VData>) => void | boolean) {  // iterates edge sources
-            this.e(e => { for (let u of e.sources) cont(u); });
+
+        s(cont: (t: Vertex<VData>) => void | boolean) {  // iterates edge sources
+            this.e(e => {
+                for (let u of e.sources) cont(u);
+            });
         }
-        si(idx: number, cont: (t:Vertex<VData>) => void | boolean) {  // iterates edge sources with given index
-            this.e(e => { let u = e.sources[idx]; u && cont(u); });
+
+        si(idx: number, cont: (t: Vertex<VData>) => void | boolean) {  // iterates edge sources with given index
+            this.e(e => {
+                let u = e.sources[idx];
+                u && cont(u);
+            });
         }
-        first<T>(f: (e:Edge) => T) {
+
+        first<T>(f: (e: Edge) => T) {
             for (let e of this.gen) {
                 var va = f(e);
                 if (va) return va;
             }
         }
-        t_first() { return this.first(e => e.target); }
-        s_first(idx: number = 0) { return this.first(e => e.sources[idx]); }
+
+        t_first() {
+            return this.first(e => e.target);
+        }
+
+        s_first(idx: number = 0) {
+            return this.first(e => e.sources[idx]);
+        }
 
         resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], route?: Vertex<VData>[]) {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
@@ -180,11 +241,20 @@ namespace HMatcher {
                     return;
                 }
 
-                if (!nextDefinition.through) {
+                const {labelPred, vertex, through, modifier, excluding} = nextDefinition;
+
+                if (vertex) {
+                    throw new Error("Inner match definitions cannot define `vertex`");
+                }
+
+                if (!through) {
                     throw new Error("Inner match definitions must define `through`");
                 }
 
-                const { labelPred, through, modifier } = nextDefinition;
+                if (modifier != "rtc" && excluding) {
+                    throw new Error("Inner match definitions must be `rtc` to define `excluding`");
+                }
+
                 const methodBase = THROUGH_TO_METHOD[through];
                 const method = modifier ? `${methodBase}_${modifier}` : methodBase;
 
@@ -192,19 +262,24 @@ namespace HMatcher {
                     throw new Error(`Method ${method} does not exist on HMatcher`);
                 }
 
-                const subquery: Matched<VData> = this.matcher[method](u, labelPred);
+                const subquery: Matched<VData> = this.matcher[method](u, labelPred, excluding);
                 subquery.resolvePatternDefinitions(handler, restOfDefinitions, extendedRoute);
             });
         }
     }
 
     export class Memento {
-        edges: {[key: string]: Edge} = {}  /** @oops I'd like to use a static type with `keyof` here somehow */
+        edges: { [key: string]: Edge } = {}
+
+        /** @oops I'd like to use a static type with `keyof` here somehow */
 
         e(key: string) {
             const self = this;
             return <VData>(m: Matched<VData>) => new Matched<VData>(m.matcher, function* () {
-                for (let e of m.gen) { self.edges[key] = e; yield e; }
+                for (let e of m.gen) {
+                    self.edges[key] = e;
+                    yield e;
+                }
             });
         }
     }
@@ -217,7 +292,7 @@ namespace HMatcher {
         return <S>(cont: (t: T) => S) => (t: T) => pred(t) ? cont(t) : undefined;
     }
 
-    export function byLabel<T extends {label: string}>(label: string | string[]) {
+    export function byLabel<T extends { label: string }>(label: string | string[]) {
         if (!Array.isArray(label)) label = [label];
         return filtered<T>(u => label.includes(u.label));
     }
@@ -227,14 +302,14 @@ namespace HMatcher {
      * (Ideally, all the data should be in the graph, but sometimes it is not.)
      */
     export namespace Ast {
-        export function by<D extends {ast: Ast}>(pred: (ast: Ast) => boolean) {
+        export function by<D extends { ast: Ast }>(pred: (ast: Ast) => boolean) {
             return filtered<Vertex<D>>(u => {
                 let ast = u.data?.ast;
                 return !!ast && pred(ast);
             });
         }
 
-        export function byNodeType<D extends {ast: Ast}>(nodeType: string) {
+        export function byNodeType<D extends { ast: Ast }>(nodeType: string) {
             return by<D>(ast => ast.type === nodeType);
         }
     }
@@ -244,4 +319,4 @@ import LabelPat = HMatcher.LabelPat;
 import Matched = HMatcher.Matched;
 
 
-export { HMatcher }
+export {HMatcher}
