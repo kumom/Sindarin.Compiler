@@ -25,6 +25,7 @@ type Route<VData> = Vertex<VData>[];
 interface PatternDefinitionPayload {
     vertexLabelPat?: LabelPat;  // Pattern for vertex label matching
     visited?: Set<string>;  // Visited nodes by `getRouteKey`
+    firstOnly?: boolean;
 }
 
 function getRouteKey<VData>(route: Route<VData>) {
@@ -119,7 +120,9 @@ class HMatcher<VData = any> {
      * Perform complex traversal via a list of PatternDefinition objects
      * @param definitions how to traverse the graph
      */
-    resolvePatternDefinitions(definitions: HMatcher.PatternDefinition[], handler: (route: Route<VData>) => void) {
+    resolvePatternDefinitions(pattern: HMatcher.RoutePatternDefinition, handler: (route: Route<VData>) => void) {
+        const {definitions, firstOnly} = pattern;
+
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
         }
@@ -135,12 +138,21 @@ class HMatcher<VData = any> {
         const vertexLabelPat = vertex ? vertex.label : null;
         const visited = new Set();
 
-        startingSet.resolvePatternDefinitions(handler, restOfDefinitions, {vertexLabelPat, visited});
+        startingSet.resolvePatternDefinitions(handler, restOfDefinitions, {
+            vertexLabelPat,
+            visited,
+            firstOnly,
+        });
     }
 }
 
 
 namespace HMatcher {
+
+    export interface RoutePatternDefinition {
+        definitions: PatternDefinition[];
+        firstOnly?: boolean;
+    }
 
     export interface PatternDefinition {
         labelPred?: LabelPat;  // Label matcher
@@ -238,7 +250,7 @@ namespace HMatcher {
             return this.first(e => e.sources[idx]);
         }
 
-        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>) {
+        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
             const {labelPred, vertex, through, modifier, excluding} = nextDefinition || {};
 
@@ -264,9 +276,14 @@ namespace HMatcher {
                 }
             }
 
-            const {vertexLabelPat, visited} = payload;
+            let found = false;
+            const {vertexLabelPat, visited, firstOnly} = payload;
 
             const routeHandler = (u) => {
+                if (found && firstOnly) {
+                    return;
+                }
+
                 const extendedRoute = route ? [...route, u] : [u];
 
                 // Dedupe routes
@@ -276,7 +293,6 @@ namespace HMatcher {
                 }
 
                 visited.add(routeKey);
-                console.log(isRouteDone, routeKey);
 
                 // Not done yet
                 if (!isRouteDone) {
@@ -286,20 +302,17 @@ namespace HMatcher {
                         vertexLabelPat: nextDefinition.vertexLabelPat,
                     };
 
-                    subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);
+                    found = subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);
                     return;
                 }
 
+                found = true;
                 handler(extendedRoute);
                 return;
             };
 
-            // TODO: fix
-            if (through === "outgoing") {
-                this.s(routeHandler, vertexLabelPat);
-            } else {
-                this.s(routeHandler, vertexLabelPat);
-            }
+            this.s(routeHandler, vertexLabelPat);
+            return found;
         }
     }
 

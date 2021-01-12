@@ -8,6 +8,6 @@ export const SYNCAT = /* should be all syntactic edge types */
         VARIABLE_DECLARATION, "VariableDeclarationList", "FirstStatement",
         "BinaryExpression", "BreakStatement", "NewExpression",
         "ThrowStatement", "IfStatement", "ExpressionStatement",
-        "Block", "WhileStatement", "MethodDeclaration"]);
-export const SCOPES = ['ClassDeclaration', 'MethodDeclaration', 'Block'];
+        "Block", "WhileStatement", "MethodDeclaration", "CatchClause"]);
+export const SCOPES = ["ClassDeclaration", "MethodDeclaration", "Block", "CatchClause"];
 export const EXPRESSIONS = SetOps.diff(SYNCAT, SCOPES);

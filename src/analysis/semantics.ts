@@ -1,6 +1,6 @@
 import {Hypergraph} from "./hypergraph";
 import {HMatcher} from "./pattern";
-import PatternDefinition = HMatcher.PatternDefinition;
+import RoutePatternDefinition = HMatcher.RoutePatternDefinition;
 import {SCOPES, VARIABLE_DECLARATION} from "./syntax";
 import Vertex = Hypergraph.Vertex;
 
@@ -19,27 +19,31 @@ export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultP
         return false;
     }
 
-    const patternDefinition: PatternDefinition[] = [
-        {   // Start with our vertex
-            vertex,
-            vertexLabelPat: label,
-        },
-        {   // Find all scopes it is defined under
-            labelPred: SCOPES,
-            through: "outgoing",
-            modifier: "rtc",
-            excluding: DEFINITION_LABEL,
-        },
-        {   // For each scope, find the variables declared (in this scope only) (TODO: this + arguments)
-            labelPred: VARIABLE_DECLARATION,
-            through: "incoming",
-            modifier: "rtc",
-            excluding: [...SCOPES, DEFINITION_LABEL],
-            vertexLabelPat: label,
-        },
-    ];
+    const pattern: RoutePatternDefinition = {
+        firstOnly: true,  // Only choose closest match
+        definitions: [
+            {   // Start with our vertex
+                vertex,
+                vertexLabelPat: label,
+            },
+            {   // Find all scopes it is defined under
+                labelPred: SCOPES,
+                through: "outgoing",
+                modifier: "rtc",
+                excluding: [DEFINITION_LABEL, VARIABLE_DECLARATION],
+            },
+            {   // For each scope, find the variables declared (in this scope only) (TODO: this + arguments)
+                labelPred: VARIABLE_DECLARATION,
+                through: "incoming",
+                modifier: "rtc",
+                excluding: [...SCOPES, DEFINITION_LABEL],
+                vertexLabelPat: label,
+            },
+        ],
+    }
 
-    m.resolvePatternDefinitions(patternDefinition, (route) => {
+
+    m.resolvePatternDefinitions(pattern, (route) => {
         const [use, ...rest] = route;
         const def = rest.pop();
 

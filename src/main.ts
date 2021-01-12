@@ -140,7 +140,7 @@ function main() {
         var ide = new IDE();
 
         await ide.open('/data/typescript/lib/net.ts');
-        setTimeout(() => nav.gotoMethod('exhaust'), 0); /** @oops can only run after PegPanel 'show' event */
+        setTimeout(() => nav.gotoMethod('listen'), 0); /** @oops can only run after PegPanel 'show' event */
         //setTimeout(() =>
         //    nav.ast.focus(nav.findImports()[0]));
 
