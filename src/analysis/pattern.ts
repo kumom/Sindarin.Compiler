@@ -20,6 +20,17 @@ function* lazyFilter<T>(arr: T[] | Generator<T, any, unknown>, filter: (obj: T) 
     }
 }
 
+type Route<VData> = Vertex<VData>[];
+
+interface PatternDefinitionPayload {
+    vertexLabelPat?: LabelPat;  // Pattern for vertex label matching
+    visited?: Set<string>;  // Visited nodes by `getRouteKey`
+}
+
+function getRouteKey<VData>(route: Route<VData>) {
+    return route.map(v => v.id).join("|");
+}
+
 class HMatcher<VData = any> {
     g: Hypergraph<VData>
 
@@ -69,7 +80,7 @@ class HMatcher<VData = any> {
      */
     lt_rtc(target: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toObjectWithLabel(label);
-        const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
+        const pExclude = HMatcher.toObjectWithLabel(excluding, {negate: true});
 
         function* aux(v: Vertex) {
             for (let e of lazyFilter<Edge>(v.incoming, pExclude)) {
@@ -90,7 +101,7 @@ class HMatcher<VData = any> {
      */
     sl_rtc(source: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toObjectWithLabel(label);
-        const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
+        const pExclude = HMatcher.toObjectWithLabel(excluding, {negate: true});
 
         function* aux(v: Vertex) {
             for (let e of lazyFilter<Edge>(v.outgoing, pExclude)) {
@@ -108,7 +119,7 @@ class HMatcher<VData = any> {
      * Perform complex traversal via a list of PatternDefinition objects
      * @param definitions how to traverse the graph
      */
-    resolvePatternDefinitions(definitions: HMatcher.PatternDefinition[], handler: (route: Vertex<VData>[]) => void) {
+    resolvePatternDefinitions(definitions: HMatcher.PatternDefinition[], handler: (route: Route<VData>) => void) {
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
         }
@@ -122,7 +133,9 @@ class HMatcher<VData = any> {
 
         const startingSet = vertex ? this.v(vertex) : this.l(labelPred);
         const vertexLabelPat = vertex ? vertex.label : null;
-        startingSet.resolvePatternDefinitions(handler, restOfDefinitions, vertexLabelPat);
+        const visited = new Set();
+
+        startingSet.resolvePatternDefinitions(handler, restOfDefinitions, {vertexLabelPat, visited});
     }
 }
 
@@ -133,15 +146,15 @@ namespace HMatcher {
         labelPred?: LabelPat;  // Label matcher
         vertex?: Vertex; // For first definition only!
 
-        through?: "sources" | "targets";  // Traversal direction
+        through?: "incoming" | "outgoing";  // Traversal direction
         modifier?: "rtc"; // Traversal type
         excluding?: LabelPat; // Exclude labels
         vertexLabelPat?: LabelPat; // Filter for vertices label
     }
 
     const THROUGH_TO_METHOD = {
-        "sources": "sl",
-        "targets": "lt",
+        "outgoing": "sl",
+        "incoming": "lt",
     };
 
     export type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
@@ -154,7 +167,7 @@ namespace HMatcher {
 
     export function toObjectWithLabel(l: LabelPat, options?: ObjectWithLabelPredOptions): ObjectWithLabel {
         if (options?.negate) {
-            const { negate, ...rest } = options;
+            const {negate, ...rest} = options;
             const innerPred = this.toObjectWithLabel(l, rest);
             return e => !innerPred(e);
         }
@@ -225,14 +238,15 @@ namespace HMatcher {
             return this.first(e => e.sources[idx]);
         }
 
-        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], vertexLabelPat: LabelPat, route?: Vertex<VData>[]) {
+        resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>) {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
             const {labelPred, vertex, through, modifier, excluding} = nextDefinition || {};
 
             const methodBase = THROUGH_TO_METHOD[through];
             const method = modifier ? `${methodBase}_${modifier}` : methodBase;
+            const isRouteDone = !nextDefinition;
 
-            if (nextDefinition) {
+            if (!isRouteDone) {
                 if (vertex) {
                     throw new Error("Inner match definitions cannot define `vertex`");
                 }
@@ -250,21 +264,40 @@ namespace HMatcher {
                 }
             }
 
+            const {vertexLabelPat, visited} = payload;
+
             const routeHandler = (u) => {
                 const extendedRoute = route ? [...route, u] : [u];
 
-                if (!nextDefinition) {
-                    handler(extendedRoute);
+                // Dedupe routes
+                const routeKey = getRouteKey(extendedRoute);
+                if (visited.has(routeKey)) {
                     return;
                 }
 
-                const subquery: Matched<VData> = this.matcher[method](u, labelPred, excluding);
-                subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextDefinition.vertexLabelPat, extendedRoute);
+                visited.add(routeKey);
+                console.log(isRouteDone, routeKey);
+
+                // Not done yet
+                if (!isRouteDone) {
+                    const subquery: Matched<VData> = this.matcher[method](u, labelPred, excluding);
+                    const nextPayload = {
+                        ...payload,
+                        vertexLabelPat: nextDefinition.vertexLabelPat,
+                    };
+
+                    subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);
+                    return;
+                }
+
+                handler(extendedRoute);
+                return;
             };
 
-            if (nextDefinition === "sources") {
-                this.t(routeHandler, vertexLabelPat);
-            } else {  // also NULL
+            // TODO: fix
+            if (through === "outgoing") {
+                this.s(routeHandler, vertexLabelPat);
+            } else {
                 this.s(routeHandler, vertexLabelPat);
             }
         }

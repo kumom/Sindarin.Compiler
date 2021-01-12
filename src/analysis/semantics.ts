@@ -1,30 +1,23 @@
 import {Hypergraph} from "./hypergraph";
 import {HMatcher} from "./pattern";
 import PatternDefinition = HMatcher.PatternDefinition;
-import {EXPRESSIONS, SCOPES, VARIABLE_DECLARATION} from "./syntax";
+import {SCOPES, VARIABLE_DECLARATION} from "./syntax";
 import Vertex = Hypergraph.Vertex;
 
-/* u --(EXPRESSIONS)-->* v --(lscope)--> s */
-/*
-    m.l(EXPRESSIONS).t(u => {
-        m.sl_rtc(u, 'lscope').t(lscope => {
-            peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
-        });
-    });
- */
-export const NSCOPE_PATTERN_DEFINITIONS: PatternDefinition[] = [
-    {labelPred: EXPRESSIONS},
-    {labelPred: 'lscope', through: "sources", modifier: "rtc"},
-];
+// Not really, but close enough :shrug
+const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;
 
-export function resolveLexicalScope<VData>(peg: Hypergraph<VData>, vertex: Vertex): Hypergraph<VData> {
-    const scopeResolutionPeg = new Hypergraph();
-    scopeResolutionPeg._max = peg._max;
+const DEFINITION_LABEL = 'DEFINITION';
 
-    const m = new HMatcher(peg);
 
-    const DEFINITION_LABEL = 'DEFINITION';
+export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultPeg: Hypergraph<VData>, vertex: Vertex): boolean {
+    const m = new HMatcher(sourcePeg);
+
     const {label} = vertex;
+
+    if (!label || !VARIABLE_NAME_REGEX.test(label)) {
+        return false;
+    }
 
     const patternDefinition: PatternDefinition[] = [
         {   // Start with our vertex
@@ -33,35 +26,35 @@ export function resolveLexicalScope<VData>(peg: Hypergraph<VData>, vertex: Verte
         },
         {   // Find all scopes it is defined under
             labelPred: SCOPES,
-            through: "sources",
+            through: "outgoing",
             modifier: "rtc",
             excluding: DEFINITION_LABEL,
         },
         {   // For each scope, find the variables declared (in this scope only) (TODO: this + arguments)
             labelPred: VARIABLE_DECLARATION,
-            through: "targets",
+            through: "incoming",
             modifier: "rtc",
             excluding: [...SCOPES, DEFINITION_LABEL],
             vertexLabelPat: label,
         },
     ];
 
-    const visited = new Set();
-
     m.resolvePatternDefinitions(patternDefinition, (route) => {
         const [use, ...rest] = route;
         const def = rest.pop();
 
-        const key = `${use.id}|${def.id}`;
-
-        // Key exists - TODO: make this automatic?
-        if (visited.has(key) || vertex.outgoing.find(({label, target}) => label === DEFINITION_LABEL && target.id === def.id)) {
+        // No sense in reflexivity here
+        if (use === def) {
             return;
         }
 
-        visited.add(key);
-        scopeResolutionPeg.add([{label: DEFINITION_LABEL, sources: [use], target: def}]);
+        // Already applied transformation to graph
+        if (vertex.outgoing.find(({label, target}) => label === DEFINITION_LABEL && target.id === def.id)) {
+            return;
+        }
+
+        resultPeg.add([{label: DEFINITION_LABEL, sources: [use], target: def}]);
     });
 
-    return scopeResolutionPeg;
+    return true;
 }

@@ -4,7 +4,6 @@ import { Ast } from '../ide/panels/ast-panel';
 import {resolveLexicalScope} from "./semantics";
 
 
-
 class Hypergraph<VData = any> {
 
     vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>> = new Map;
@@ -380,15 +379,21 @@ class HypergraphView {
     }
 
     _onNodeSelected({nodes}: VisSelectionEventArgs) {
-        if (nodes.length !== 1) {
-            throw new Error("Umm... not yet :-)")
-        }
-
-        const vertices = nodes.map(parseInt).map(id => this.peg.vertices.get(id));
-        const vertex = vertices[0];
-
-        const scopeResolutionPeg = resolveLexicalScope(this.peg, vertex);
-        this.overlay(scopeResolutionPeg, false, {shape: 'box', color: '#ca2340', shapeProperties: {borderRadius: 99}});
+        // if (nodes.length !== 1) {
+        //     throw new Error("Umm... not yet :-)")
+        // }
+        //
+        // const vertices = nodes.map(parseInt).map(id => this.peg.vertices.get(id));
+        // const vertex = vertices[0];
+        //
+        // const scopeResolutionPeg = new Hypergraph();
+        // scopeResolutionPeg._max = this.peg._max;
+        //
+        // if (!resolveLexicalScope(this.peg, scopeResolutionPeg, vertex)) {
+        //     return;
+        // }
+        //
+        // this.overlay(scopeResolutionPeg, false, {shape: 'box', color: '#ca2340', shapeProperties: {borderRadius: 99}});
     }
 
     _onNodeDeselected({ previousSelection}: VisSelectionEventArgs) {

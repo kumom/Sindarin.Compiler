@@ -10,8 +10,8 @@ import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 import PatternDefinition = HMatcher.PatternDefinition;
 import {AstPanel} from './ide/panels/ast-panel';
-import {SCOPES} from "./analysis/syntax";
-import {NSCOPE_PATTERN_DEFINITIONS} from "./analysis/semantics";
+import {EXPRESSIONS, SCOPES} from "./analysis/syntax";
+import {resolveLexicalScope} from "./analysis/semantics";
 
 
 function semanticAnalysis_C(peg1: Hypergraph) {
@@ -121,24 +121,14 @@ function semanticAnalysis_C(peg1: Hypergraph) {
     return peg2;
 }
 
-function semanticAnalysis_TS(peg1: Hypergraph) {
-    const peg2 = new Hypergraph();
-    peg2._max = peg1._max;
+function semanticAnalysis_TS(sourcePeg: Hypergraph) {
+    const scopeResolutionPeg = new Hypergraph();
+    scopeResolutionPeg._max = sourcePeg._max;
 
-    const m = new HMatcher(peg1);
-    const mm = new HMatcher.Memento;
+    const m = new HMatcher(sourcePeg);
+    m.l(EXPRESSIONS).s(resolveLexicalScope.bind(null, sourcePeg, scopeResolutionPeg));
 
-    // Add lexical scope nodes
-    m.l(SCOPES).t(u => {
-        peg2.add([{label: 'lscope', sources: [u], target: -1}]);
-    });
-
-    // Add edges from each expression to parent scopes
-    m.resolvePatternDefinitions(NSCOPE_PATTERN_DEFINITIONS, ([u, lscope]) => {
-        peg2.add([{label: 'nscope', sources: [u], target: lscope}]);
-    });
-
-    return peg2;
+    return scopeResolutionPeg;
 }
 
 
