@@ -1,9 +1,6 @@
 import * as uuid from 'uuid';
 import * as vis from 'vis-metapkg';
 import { Ast } from '../ide/panels/ast-panel';
-import {resolveLexicalScope} from "./semantics";
-import Vertex = Hypergraph.Vertex;
-
 
 class Hypergraph<VData = any> {
 
