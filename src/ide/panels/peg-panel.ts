@@ -36,9 +36,7 @@ class PegPanel extends Vue {
     }
 
     overlay(peg: Hypergraph) {
-        var n1 = this.view, n2 = peg.toVis();
-        n1.nail(); n1.fade();
-        setTimeout(() => n1.merge(n2), 1);
+        this.view.overlay(peg);
     }
 
     showConfig() {
