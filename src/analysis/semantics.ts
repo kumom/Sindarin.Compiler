@@ -23,7 +23,7 @@ function _getClosestScopePatternDefinitionss<VData>(vertex: Vertex<VData>): Patt
             labelPred: SCOPES,
             through: "outgoing",
             modifier: "rtc",
-            excluding: [DEFINITION_LABEL, VARIABLE_DECLARATION, PARAMETER],
+            excluding: [DEFINITION_LABEL, PARAMETER],
         },
     ];
 }

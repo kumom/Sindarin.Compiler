@@ -2,6 +2,8 @@ import * as uuid from 'uuid';
 import * as vis from 'vis-metapkg';
 import { Ast } from '../ide/panels/ast-panel';
 
+import {resolveLexicalScope} from './semantics';
+
 class Hypergraph<VData = any> {
 
     vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>> = new Map;
