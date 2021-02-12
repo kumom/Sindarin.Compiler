@@ -140,7 +140,7 @@ function main() {
         var ide = new IDE();
 
         await ide.open('/data/typescript/lib/net.ts');
-        setTimeout(() => nav.gotoMethod('listen'), 0); /** @oops can only run after PegPanel 'show' event */
+        setTimeout(() => nav.gotoClass('Server'), 0); /** @oops can only run after PegPanel 'show' event */
         //setTimeout(() =>
         //    nav.ast.focus(nav.findImports()[0]));
 
@@ -221,12 +221,21 @@ class SourceNavigator {
     }
 
     gotoDecl(declType: string, name: string) {
-        var m = new HMatcher(this.peg), mm = new HMatcher.Memento,
+        var m = new HMatcher(this.peg),
+            mm = new HMatcher.Memento,
             res = [];
+
         mm.e('e')(m.l(declType)).s(ID(HMatcher.byLabel(name)(() => {
             res.push(mm.edges['e'].target.data.ast);
         })));
-        if (res[0]) this.ast.focus(res[0]);
+
+        const declTree = res[0];
+        if (!declTree)
+        {
+            return;
+        }
+
+        this.ast.focus(declTree);
     }
 
     gotoClass(name: string) {
