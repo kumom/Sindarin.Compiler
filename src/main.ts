@@ -12,6 +12,7 @@ import PatternDefinition = HMatcher.PatternDefinition;
 import {AstPanel} from './ide/panels/ast-panel';
 import {EXPRESSIONS, SCOPES} from "./analysis/syntax";
 import {resolveLexicalScope} from "./analysis/semantics";
+import {performPointsToAnalysis} from "./analysis/pta";
 
 
 function semanticAnalysis_C(peg1: Hypergraph) {
@@ -146,16 +147,17 @@ function main() {
 
         //await ide.open('/data/c/bincnt.c');
         ide.parse(parser);
-        var semanticAnalysis = semanticAnalysis_TS;
+        const semanticAnalysis = semanticAnalysis_TS;
 
         //ide.panels.ast.hide();
 
-        var peg1: Hypergraph, peg2: Hypergraph,
+        let peg1: Hypergraph, peg2: Hypergraph, peg3: Hypergraph,
             nav: SourceNavigator;
 
         function syntax() {
             peg1 = new Hypergraph().fromAst(ide.panels.ast.focused);
             peg2 = undefined;
+            peg3 = undefined;
             ide.panels.peg.show(peg1);
             Object.assign(window, {peg1, m: new HMatcher(peg1), H: HMatcher});
         }
@@ -165,6 +167,14 @@ function main() {
                 peg2 = semanticAnalysis(peg1);
                 ide.panels.peg.overlay(peg2);
                 Object.assign(window, {peg2});
+            }
+        }
+
+        function pta() {
+            if (!peg3) {
+                peg3 = performPointsToAnalysis(peg1);
+                ide.panels.peg.overlay(peg3);
+                Object.assign(window, {peg3});
             }
         }
 
@@ -187,6 +197,9 @@ function main() {
                     break;
                 case 'semantics':
                     semantics();
+                    break;
+                case 'pta':
+                    pta();
                     break;
             }
         }
