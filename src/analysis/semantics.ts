@@ -1,7 +1,7 @@
 import {Hypergraph} from "./hypergraph";
 import {HMatcher} from "./pattern";
 import RoutePatternDefinition = HMatcher.RoutePatternDefinition;
-import {SCOPES, VARIABLE_DECLARATION, PARAMETER} from "./syntax";
+import * as Syntax from "./syntax";
 import Vertex = Hypergraph.Vertex;
 import PatternDefinition = HMatcher.PatternDefinition;
 
@@ -10,19 +10,28 @@ const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;
 
 const DEFINITION_LABEL = 'DEFINITION';
 
-export function getClosestScopeRouteDefinition(pattern: PatternDefinition, ...patternsUnderScope: PatternDefinition[]): RoutePatternDefinition {
+interface ScopeResolutionOptions {
+    routeOverrides?: RoutePatternDefinition;
+    patternsUnderScope?: PatternDefinition[];
+    excludedScopes?: string[];
+}
+
+export function getClosestScopeRouteDefinition(pattern: PatternDefinition, options: ScopeResolutionOptions): RoutePatternDefinition {
+    const {routeOverrides, patternsUnderScope=[], excludedScopes} = options;
+
     return {
         firstOnly: true,  // Only choose closest match
         definitions: [
             pattern,  // Start with our expression
             {  // Find all scopes it is defined under
-                labelPred: SCOPES,
+                labelPred: Syntax.SCOPES,
                 through: "outgoing",
                 modifier: "rtc",
-                excluding: [DEFINITION_LABEL, PARAMETER],
+                excluding: [DEFINITION_LABEL, Syntax.PARAMETER, ...excludedScopes],
             },
             ...patternsUnderScope,
         ],
+        ...routeOverrides,
     };
 }
 
@@ -31,7 +40,9 @@ function _getClosestScopeRouteDefinitionForVertex<VData>(vertex: Vertex<VData>, 
     return getClosestScopeRouteDefinition({
         vertex,
         vertexLabelPat: label,
-    }, ...patternsUnderScope);
+    }, {
+        patternsUnderScope,
+    });
 }
 
 export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultPeg: Hypergraph<VData>, vertex: Vertex<VData>): boolean {
@@ -47,10 +58,10 @@ export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultP
 
     const pattern: RoutePatternDefinition = _getClosestScopeRouteDefinitionForVertex(vertex, {
         // For each scope, find the variables/parameters declared (in this scope only)
-        labelPred: [VARIABLE_DECLARATION, PARAMETER],
+        labelPred: [Syntax.VARIABLE_DECLARATION, Syntax.PARAMETER],
         through: "incoming",
         modifier: "rtc",
-        excluding: [...SCOPES, DEFINITION_LABEL],
+        excluding: [...Syntax.SCOPES, DEFINITION_LABEL],
         vertexLabelPat: label,
     });
 

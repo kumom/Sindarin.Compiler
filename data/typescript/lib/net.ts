@@ -20,8 +20,15 @@ class Server extends EventEmitter {
 
     listen(port: number, callback: () => void) {
         var h = this._createHandle();
+        var z = null;  // Make things fun for PTA
         try {
             h.bind(port); h.listen(5);
+
+            // And to make them even more interesting :-)
+            z = h;
+            if (z == 42) {
+                return 15;
+            }
         }
         catch (e) { this.emit('error', e); return ; }
         try { callback(); } catch (e) { console.error(e); }

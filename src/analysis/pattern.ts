@@ -1,23 +1,42 @@
 import {Hypergraph} from './hypergraph';
 import {Ast} from '../ide/panels/ast-panel';
+import * as Syntax from "./syntax";
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
 // @ts-ignore
-function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T, any, unknown>, map: (obj: T) => Generator<TResult, any, unknown>): Generator<TResult, any, unknown> {
+function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T>, map: (obj: T) => Generator<TResult>): Generator<TResult> {
     for (let obj of arr) {
         yield* map(obj);
     }
 }
 
 // @ts-ignore
-function* lazyFilter<T>(arr: T[] | Generator<T, any, unknown>, filter: (obj: T) => boolean): Generator<T, any, unknown> {
+function* lazyFilter<T>(arr: T[] | Generator<T>, filter: (obj: T) => boolean): Generator<T> {
     for (let obj of arr) {
         if (filter(obj)) {
             yield obj;
         }
     }
+}
+
+export function toSubtreeString(vertex: Vertex): string {
+    const tokens = lazyFilter(toSubtreeStringVertexGen(vertex), Syntax.isNonSyntaxToken)
+    return Array.from(tokens).join(" ");
+}
+
+function* toSubtreeStringVertexGen(vertex: Vertex): Generator<string> {
+    const { label } = vertex;
+    if (label) {
+        yield label;
+    }
+
+    yield* lazyFlatMap(vertex.incoming, toSubtreeStringEdgeGen);
+}
+
+function toSubtreeStringEdgeGen(edge: Edge): Generator<string> {
+    return lazyFlatMap(edge.sources, toSubtreeStringVertexGen);
 }
 
 type Route<VData> = Vertex<VData>[];
@@ -28,6 +47,7 @@ interface PatternDefinitionPayload {
     firstOnly?: boolean;
     topLevel?: boolean;  // Is Top Level of search
     resolve?: "sources" | "targets";
+    resultFilter: (route: Route<any>) => boolean;
 }
 
 function getRouteKey<VData>(route: Route<VData>) {
@@ -123,7 +143,7 @@ class HMatcher<VData = any> {
      * @param definitions how to traverse the graph
      */
     resolvePatternDefinitions(pattern: HMatcher.RoutePatternDefinition, handler: (route: Route<VData>) => void) {
-        const {definitions, firstOnly} = pattern;
+        const {definitions, firstOnly, resultFilter} = pattern;
 
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
@@ -146,6 +166,7 @@ class HMatcher<VData = any> {
             firstOnly,
             topLevel: true,
             resolve,
+            resultFilter,
         });
     }
 
@@ -166,8 +187,9 @@ class HMatcher<VData = any> {
 namespace HMatcher {
 
     export interface RoutePatternDefinition {
-        definitions: PatternDefinition[];
+        definitions?: PatternDefinition[];
         firstOnly?: boolean;  // Get only first route (per stating-set element)
+        resultFilter?: (route: Route<any>) => boolean;
     }
 
     export interface PatternDefinition {
@@ -270,7 +292,7 @@ namespace HMatcher {
         resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
             const {labelPred, vertex, through, modifier, excluding} = nextDefinition || {};
-            const {vertexLabelPat, visited, firstOnly, topLevel, resolve} = payload;
+            const {vertexLabelPat, visited, firstOnly, topLevel, resolve, resultFilter} = payload;
 
             const methodBase = THROUGH_TO_METHOD[through];
             const method = modifier ? `${methodBase}_${modifier}` : methodBase;
@@ -326,6 +348,10 @@ namespace HMatcher {
                     };
 
                     found = subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);
+                    return;
+                }
+
+                if (resultFilter && !resultFilter(extendedRoute)) {
                     return;
                 }
 
