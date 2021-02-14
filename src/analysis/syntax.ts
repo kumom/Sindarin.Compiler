@@ -8,6 +8,9 @@ export const CATCH_CLAUSE = "CatchClause";
 export const VARIABLE_DECLARATION = "VariableDeclaration";
 export const PARAMETER = "Parameter";
 
+export const RETURN_STATEMENT = "ReturnStatement";
+
+export const CALL_EXPRESSION = "CallExpression";
 export const BINARY_EXPRESSION = "BinaryExpression";
 export const ARRAY_LITERAL_EXPRESSION = "ArrayLiteralExpression";
 export const OBJECT_LITERAL_EXPRESSION = "ObjectLiteralExpression";
@@ -16,7 +19,8 @@ export const TYPE_ASSERTIONL_EXPRESSION = "TypeAssertionExpression";
 export const ALL = new Set([
     "SyntaxList",
     "PropertyAccessExpression",
-    "CallExpression",
+    RETURN_STATEMENT,
+    CALL_EXPRESSION,
     VARIABLE_DECLARATION,
     "VariableDeclarationList",
     "FirstStatement",
