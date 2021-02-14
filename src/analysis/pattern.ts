@@ -21,13 +21,20 @@ function* lazyFilter<T>(arr: T[] | Generator<T>, filter: (obj: T) => boolean): G
     }
 }
 
-export function toSubtreeString(vertex: Vertex): string {
+const DEFAULT_VALUES = {
+    "null": null,
+    "undefined": undefined,
+};
+
+export function toSubtreeString(vertex: Vertex, sep = " "): string {
     const tokens = lazyFilter(toSubtreeStringVertexGen(vertex), Syntax.isNonSyntaxToken)
-    return Array.from(tokens).join(" ");
+    const result = Array.from(tokens).join(sep);
+
+    return result in DEFAULT_VALUES ? DEFAULT_VALUES[result] : result;
 }
 
 function* toSubtreeStringVertexGen(vertex: Vertex): Generator<string> {
-    const { label } = vertex;
+    const {label} = vertex;
     if (label) {
         yield label;
     }
@@ -171,7 +178,7 @@ class HMatcher<VData = any> {
     }
 
     /**
-    * Run resolvePatternDefinitions and gather results into an array
+     * Run resolvePatternDefinitions and gather results into an array
      */
     collectPatternDefinition(pattern: HMatcher.RoutePatternDefinition): Route<VData>[] {
         const results: Route<VData>[] = [];

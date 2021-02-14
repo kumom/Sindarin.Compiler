@@ -114,7 +114,11 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 }
 
                 const [source, _, target] = sources;
-                console.log(source, target)
+
+                // TODO: split by multi-source
+                // TODO: resolve multi-field assignments
+                // TODO: convert simple values (null, undefined, classes?)
+                // TODO: add graph object
                 return;
             }
             default: {
