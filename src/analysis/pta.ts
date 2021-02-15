@@ -4,6 +4,8 @@ import * as Syntax from "./syntax";
 import Vertex = Hypergraph.Vertex;
 import {getClosestScopeRouteDefinition} from "./semantics";
 import Edge = Hypergraph.Edge;
+import assert from "assert";
+import {BINARY_EXPRESSION} from "./syntax";
 
 
 const ASSIGNMENT_EXPRESSIONS = [
@@ -17,6 +19,7 @@ const ASSIGNMENT_EXPRESSIONS = [
 const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0, 2));
 
 const ASSIGNMENT_FILTER = ([assignmentExpr, _]) => _filterAssignments(assignmentExpr);
+
 function _filterAssignments(assignmentExpr: Vertex): boolean {
     const {incoming} = assignmentExpr;
     if (!incoming || incoming.length !== 1) {
@@ -65,7 +68,7 @@ export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hy
 
     // 5) Apply to HyperGraph
     result.forEach((key, value) => {
-       // TODO: manipulate peg
+        // TODO: manipulate peg
     });
 
     // Profit
@@ -80,6 +83,7 @@ interface AnalysisExpression<VData> {
 }
 
 const ANALYSIS_FACTORY = ([assignmentExpr, scope]) => _createAnalysisExpression(assignmentExpr, scope);
+
 function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: Vertex<VData>): AnalysisExpression<VData> {
     const {incoming} = assignmentExpr;
     if (!incoming || incoming.length !== 1) {
@@ -98,13 +102,14 @@ function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: 
 
 interface PointsToAnalysis<VData> {
     addConstraint(expr: AnalysisExpression<VData>);
+
     solveConstraints(): ReadonlyMap<AnalysisExpression<VData>, Vertex<VData>>;
 }
 
 class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     addConstraint(expr: AnalysisExpression<VData>) {
-        const { assignmentExpr } = expr;
-        const { label, sources } = assignmentExpr
+        const {assignmentExpr} = expr;
+        const {label, sources} = assignmentExpr;
 
         switch (label) {
             case Syntax.BINARY_EXPRESSION:
@@ -113,7 +118,15 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                     throw new Error("Must have three sources");
                 }
 
-                const [source, _, target] = sources;
+                const [left, _, right] = sources;
+
+                if (_isArrayLiteralVertex(left)) {
+                    this._addMultiAssignConstraint(expr, left, right);
+                    return;
+                }
+
+                // TODO: Remove
+                console.log(toSubtreeString(left, ""), " = ", toSubtreeString(right, ""));
 
                 // TODO: split by multi-source
                 // TODO: resolve multi-field assignments
@@ -130,4 +143,64 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     solveConstraints(): ReadonlyMap<AnalysisExpression<VData>, Hypergraph.Vertex<VData>> {
         return new Map();
     }
+
+    _addMultiAssignConstraint(expr: AnalysisExpression<VData>, left: Vertex<VData>, right: Vertex<VData>) {
+        const leftExpressions = _parseArrayLiteralVertex(left);
+        const rightExpressions = _parseArrayLiteralVertex(right);
+
+        assert(leftExpressions.length === rightExpressions.length);
+
+        // Create fake simpler assignments
+        for (let i = 0; i < leftExpressions.length; ++i) {
+            // TODO: with less boilerplate :-/
+            const fakeAssignment: Vertex<VData> = {
+                id: null,
+                label: null,
+                data: null,
+                outgoing: null,
+                incoming: [{
+                    label: BINARY_EXPRESSION,
+                    target: null,
+                    incident: null,
+                    toVis: null,
+                    sources: [
+                        leftExpressions[i],
+                        {
+                            id: null,
+                            label: "=",
+                            data: null,
+                            outgoing: null,
+                            incoming: null,
+                        },
+                        rightExpressions[i],
+                    ],
+                }],
+            };
+
+            this.addConstraint(_createAnalysisExpression(fakeAssignment, expr.scope));
+        }
+    }
+}
+
+function _isArrayLiteralVertex(vertex: Vertex): boolean {
+    return vertex.incoming &&
+        vertex.incoming.length === 1 &&
+        vertex.incoming[0].label === Syntax.ARRAY_LITERAL_EXPRESSION;
+}
+
+function _parseArrayLiteralVertex(vertex: Vertex): Vertex[] {
+    assert(_isArrayLiteralVertex(vertex));
+
+    const arrayLiteralExpression = vertex.incoming[0];
+    assert(arrayLiteralExpression.sources.length === 3);
+    assert(arrayLiteralExpression.sources[0].label === "[");
+    assert(arrayLiteralExpression.sources[2].label === "]");
+
+    const syntaxListVertex = arrayLiteralExpression.sources[1];
+    assert(syntaxListVertex.incoming && syntaxListVertex.incoming.length === 1);
+
+    const syntaxList = syntaxListVertex.incoming[0];
+    assert(syntaxList.label === Syntax.SYNTAX_LIST);
+
+    return syntaxList.sources.filter(_ => _.label !== ",");
 }

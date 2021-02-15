@@ -5,6 +5,7 @@ export const METHOD_DECLARATION = "MethodDeclaration";
 export const BLOCK = "block";
 export const CATCH_CLAUSE = "CatchClause";
 
+export const SYNTAX_LIST = "SyntaxList";
 export const VARIABLE_DECLARATION = "VariableDeclaration";
 export const PARAMETER = "Parameter";
 
@@ -17,7 +18,7 @@ export const OBJECT_LITERAL_EXPRESSION = "ObjectLiteralExpression";
 export const TYPE_ASSERTIONL_EXPRESSION = "TypeAssertionExpression";
 
 export const ALL = new Set([
-    "SyntaxList",
+    SYNTAX_LIST,
     "PropertyAccessExpression",
     RETURN_STATEMENT,
     CALL_EXPRESSION,
