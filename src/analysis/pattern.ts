@@ -7,9 +7,7 @@ import Vertex = Hypergraph.Vertex;
 
 // @ts-ignore
 function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T>, map: (obj: T) => Generator<TResult>): Generator<TResult> {
-    if (!arr) {
-        return;
-    }
+    if (!arr) return;
 
     for (let obj of arr) {
         yield* map(obj);
@@ -18,9 +16,7 @@ function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T>, map: (obj: T) => Gene
 
 // @ts-ignore
 function* lazyFilter<T>(arr: T[] | Generator<T>, filter: (obj: T) => boolean): Generator<T> {
-    if (!arr) {
-        return;
-    }
+    if (!arr) return;
 
     for (let obj of arr) {
         if (filter(obj)) {

@@ -118,7 +118,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                     throw new Error("Must have three sources");
                 }
 
-                const [left, _, right] = sources;
+                const [left, _, right] = sources.map(stripGibberish);
 
                 if (_isArrayLiteralVertex(left)) {
                     this._addMultiAssignConstraint(expr, left, right);
@@ -203,4 +203,19 @@ function _parseArrayLiteralVertex(vertex: Vertex): Vertex[] {
     assert(syntaxList.label === Syntax.SYNTAX_LIST);
 
     return syntaxList.sources.filter(_ => _.label !== ",");
+}
+
+function stripGibberish(vertex: Vertex): Vertex {
+    if (!vertex.incoming || vertex.incoming.length !== 1) return vertex;
+
+    const edge = vertex.incoming[0];
+    const { label, sources } = edge;
+
+    switch (edge.label) {
+        case Syntax.TYPE_ASSERTIONL_EXPRESSION:
+            assert (sources.length === 4);
+            return sources[3];
+        default:
+            return vertex;
+    }
 }
