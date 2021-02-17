@@ -8,7 +8,7 @@ import { EventEmitter } from './events';
 class Server extends EventEmitter {
     _handle: TCP
 
-    private constructor(optionsOrCallback: ServerOptions | ((c: Socket) => void),
+    private constructor(§optionsOrCallback: ServerOptions | ((c: Socket) => void),
                         connectCallback: (s: Server) => void) {
         super();
         if (!connectCallback && typeof optionsOrCallback === 'function') {

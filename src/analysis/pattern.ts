@@ -30,9 +30,10 @@ const DEFAULT_VALUES = {
     "undefined": undefined,
 };
 
-export function toSubtreeString(vertex: Vertex, sep = " "): string {
-    const tokens = lazyFilter(toSubtreeStringVertexGen(vertex), Syntax.isNonSyntaxToken)
-    const result = Array.from(tokens).join(sep);
+export function toSubtreeString(vertex: Vertex, sep = " ", includeSyntaxTokens=false): string {
+    const allTokens = toSubtreeStringVertexGen(vertex);
+    const relevantTokens = includeSyntaxTokens ? allTokens : lazyFilter(allTokens, Syntax.isNonSyntaxToken);
+    const result = Array.from(relevantTokens).join(sep);
 
     return result in DEFAULT_VALUES ? DEFAULT_VALUES[result] : result;
 }
@@ -46,8 +47,9 @@ function* toSubtreeStringVertexGen(vertex: Vertex): Generator<string> {
     yield* lazyFlatMap(vertex.incoming, toSubtreeStringEdgeGen);
 }
 
-function toSubtreeStringEdgeGen(edge: Edge): Generator<string> {
-    return lazyFlatMap(edge.sources, toSubtreeStringVertexGen);
+function* toSubtreeStringEdgeGen(edge: Edge): Generator<string> {
+    yield edge.label;
+    yield* lazyFlatMap(edge.sources, toSubtreeStringVertexGen);
 }
 
 type Route<VData> = Vertex<VData>[];

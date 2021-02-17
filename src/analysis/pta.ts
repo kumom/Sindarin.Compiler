@@ -90,6 +90,7 @@ function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: 
         throw new Error("Bad vertex");
     }
 
+    // TODO
     const name = "";
 
     return {
@@ -126,7 +127,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 }
 
                 // TODO: Remove
-                console.log(toSubtreeString(left, ""), " = ", toSubtreeString(right, ""));
+                console.log(toSubtreeString(left, " ", true), " = ", toSubtreeString(right, " ", true));
 
                 // TODO: split by multi-source
                 // TODO: resolve multi-field assignments
@@ -191,6 +192,7 @@ function _isArrayLiteralVertex(vertex: Vertex): boolean {
 function _parseArrayLiteralVertex(vertex: Vertex): Vertex[] {
     assert(_isArrayLiteralVertex(vertex));
 
+    // TODO: with pattern syntax
     const arrayLiteralExpression = vertex.incoming[0];
     assert(arrayLiteralExpression.sources.length === 3);
     assert(arrayLiteralExpression.sources[0].label === "[");
@@ -211,8 +213,9 @@ function stripGibberish(vertex: Vertex): Vertex {
     const edge = vertex.incoming[0];
     const { label, sources } = edge;
 
-    switch (edge.label) {
+    switch (label) {
         case Syntax.TYPE_ASSERTIONL_EXPRESSION:
+            // TODO: with pattern syntax
             assert (sources.length === 4);
             return sources[3];
         default:
