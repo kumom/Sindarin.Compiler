@@ -108,8 +108,10 @@ class Hypergraph<VData = any> {
         return v;
     }
 
-    _fresh() {
-        var u = new Hypergraph.Vertex(++this._max);
+    _fresh(label?: string) {
+        const u = new Hypergraph.Vertex(++this._max);
+        u.label = label;
+
         this.vertices.set(u.id, u);
         return u;
     }
@@ -158,7 +160,7 @@ namespace Hypergraph {
         label: string
         sources: Vertex[]
         target: Vertex
-        constructor(label: string, sources: Vertex[], target: Vertex) {
+        constructor(label: string, sources: Vertex[], target: Vertex = null) {
             this.label = label;
             this.sources = sources;
             this.target = target;

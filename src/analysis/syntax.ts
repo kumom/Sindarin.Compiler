@@ -15,11 +15,13 @@ export const CALL_EXPRESSION = "CallExpression";
 export const BINARY_EXPRESSION = "BinaryExpression";
 export const ARRAY_LITERAL_EXPRESSION = "ArrayLiteralExpression";
 export const OBJECT_LITERAL_EXPRESSION = "ObjectLiteralExpression";
-export const TYPE_ASSERTIONL_EXPRESSION = "TypeAssertionExpression";
+export const TYPE_ASSERTION_EXPRESSION = "TypeAssertionExpression";
+export const PROPERTY_ACCESS_EXPRESSION = "PropertyAccessExpression";
+export const NEW_EXPRESSION = "NewExpression";
 
 export const ALL = new Set([
     SYNTAX_LIST,
-    "PropertyAccessExpression",
+    PROPERTY_ACCESS_EXPRESSION,
     RETURN_STATEMENT,
     CALL_EXPRESSION,
     VARIABLE_DECLARATION,
@@ -28,9 +30,9 @@ export const ALL = new Set([
     BINARY_EXPRESSION,
     ARRAY_LITERAL_EXPRESSION,
     OBJECT_LITERAL_EXPRESSION,
-    TYPE_ASSERTIONL_EXPRESSION,
+    TYPE_ASSERTION_EXPRESSION,
     "BreakStatement",
-    "NewExpression",
+    NEW_EXPRESSION,
     "ThrowStatement",
     "IfStatement",
     "ExpressionStatement",

@@ -38,9 +38,6 @@ function _filterAssignments(assignmentExpr: Vertex): boolean {
 
 
 export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hypergraph<VData> {
-    const scopeResolutionPeg = new Hypergraph();
-    scopeResolutionPeg._max = sourcePeg._max;
-
     const m = new HMatcher(sourcePeg);
 
     // 1) Collect assignments
@@ -52,7 +49,7 @@ export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hy
         routeOverrides: {
             resultFilter: ASSIGNMENT_FILTER,
         },
-    })).map(ANALYSIS_FACTORY);
+    })).map(ANALYSIS_EXPRESSION_FACTORY);
 
     // 2) Filter supported expressions
     const supportedAssignments = assignments.filter(expr => {
@@ -60,19 +57,14 @@ export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hy
     });
 
     // 3) Add to Andersen graph
-    const analysis: PointsToAnalysis<VData> = new AndersenAnalyis();
+    const analysis: PointsToAnalysis<VData> = new AndersenAnalyis(sourcePeg._max);
     supportedAssignments.forEach(analysis.addConstraint.bind(analysis));
 
     // 4) Solve constraints
     const result = analysis.solveConstraints();
 
-    // 5) Apply to HyperGraph
-    result.forEach((key, value) => {
-        // TODO: manipulate peg
-    });
-
     // Profit
-    return scopeResolutionPeg;
+    return result;
 }
 
 interface AnalysisExpression<VData> {
@@ -82,7 +74,7 @@ interface AnalysisExpression<VData> {
     repr: string;
 }
 
-const ANALYSIS_FACTORY = ([assignmentExpr, scope]) => _createAnalysisExpression(assignmentExpr, scope);
+const ANALYSIS_EXPRESSION_FACTORY = ([assignmentExpr, scope]) => _createAnalysisExpression(assignmentExpr, scope);
 
 function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: Vertex<VData>): AnalysisExpression<VData> {
     const {incoming} = assignmentExpr;
@@ -103,13 +95,19 @@ function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: 
 
 interface PointsToAnalysis<VData> {
     addConstraint(expr: AnalysisExpression<VData>);
-
-    solveConstraints(): ReadonlyMap<AnalysisExpression<VData>, Vertex<VData>>;
+    solveConstraints(): Hypergraph<VData>;
 }
 
 class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
+    peg: Hypergraph<VData>;
+
+    constructor(max: number) {
+        this.peg = new Hypergraph<VData>();
+        this.peg._max = max;
+    }
+
     addConstraint(expr: AnalysisExpression<VData>) {
-        const {assignmentExpr} = expr;
+        const {assignmentExpr, scope} = expr;
         const {label, sources} = assignmentExpr;
 
         switch (label) {
@@ -129,10 +127,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 // TODO: Remove
                 console.log(toSubtreeString(left, " ", true), " = ", toSubtreeString(right, " ", true));
 
-                // TODO: split by multi-source
-                // TODO: resolve multi-field assignments
-                // TODO: convert simple values (null, undefined, classes?)
-                // TODO: add graph object
+                this._resolveWriteConstraint(scope, left, right);
                 return;
             }
             default: {
@@ -141,11 +136,11 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         }
     }
 
-    solveConstraints(): ReadonlyMap<AnalysisExpression<VData>, Hypergraph.Vertex<VData>> {
-        return new Map();
+    solveConstraints(): Hypergraph<VData> {
+        return this.peg;
     }
 
-    _addMultiAssignConstraint(expr: AnalysisExpression<VData>, left: Vertex<VData>, right: Vertex<VData>) {
+    private _addMultiAssignConstraint(expr: AnalysisExpression<VData>, left: Vertex<VData>, right: Vertex<VData>) {
         const leftExpressions = _parseArrayLiteralVertex(left);
         const rightExpressions = _parseArrayLiteralVertex(right);
 
@@ -154,35 +149,123 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // Create fake simpler assignments
         for (let i = 0; i < leftExpressions.length; ++i) {
             // TODO: with less boilerplate :-/
-            const fakeAssignment: Vertex<VData> = {
-                id: null,
-                label: null,
-                data: null,
-                outgoing: null,
-                incoming: [{
-                    label: BINARY_EXPRESSION,
-                    target: null,
-                    incident: null,
-                    toVis: null,
-                    sources: [
-                        leftExpressions[i],
-                        {
-                            id: null,
-                            label: "=",
-                            data: null,
-                            outgoing: null,
-                            incoming: null,
-                        },
-                        rightExpressions[i],
-                    ],
-                }],
-            };
+            const fakeAssignment = new Vertex<VData>(null);
+            fakeAssignment.incoming = [
+                new Edge(BINARY_EXPRESSION, [
+                    leftExpressions[i],
+                    {
+                        id: null,
+                        label: "=",
+                        data: null,
+                        outgoing: null,
+                        incoming: null,
+                    },
+                    rightExpressions[i],
+                ]),
+            ];
 
             this.addConstraint(_createAnalysisExpression(fakeAssignment, expr.scope));
         }
     }
+
+    private _resolveWriteConstraint(scope, left, right: Vertex<VData>) {
+        const scopeVertex = this._resolveScope(scope);
+        const readVertex = this._resolveConstraint(right);
+        const writeVertex = this._resolveConstraint(left);
+
+        // Connect read and write
+        this.peg.add([new Edge("ASSIGNMENT", [readVertex], writeVertex)]);
+
+        // Connect objects to scope
+        // TODO: save the need for a root search
+        const connectRootToScope = (v: Vertex) => {
+            // Already connected to scope
+            const relevantOutgoing = v.outgoing.filter(_ => _.label === "FIELD");
+            if (relevantOutgoing.some(_ => _.label === "SCOPE")) {
+                return;
+            }
+
+            if (relevantOutgoing.length === 0) {
+                this.peg.add([new Edge("SCOPE", [v], scopeVertex)]);
+                return;
+            }
+
+            // TODO: baaaaad
+            assert(relevantOutgoing.length === 1);
+            const {target} = relevantOutgoing[0];
+            connectRootToScope(target);
+        };
+
+        connectRootToScope(readVertex);
+        connectRootToScope(writeVertex);
+    }
+
+    private _resolveScope(vertex: Vertex<VData>): Vertex {
+        // TODO: dedupe :-)
+        return this.peg._fresh(vertex.label);
+    }
+
+    private _resolveConstraint(vertex: Vertex<VData>): Vertex {
+        // TODO: deal with context (e.g. Call Expression)
+        const [edge, label] = getEdgeAndLabel(vertex);
+
+        // Simple name vertex
+        if (!edge) {
+            // TODO: deal with special values - this, null, undefined
+            // TODO: dedupe :-)
+            return this.peg._fresh(label);
+        }
+
+        switch (label) {
+            case Syntax.NEW_EXPRESSION: {
+                const {type} = _parseNewExpression(edge);
+
+                // TODO: args!
+                return this._createNewMemoryLocation(type.label);
+            }
+            case Syntax.OBJECT_LITERAL_EXPRESSION: {
+                const properties = _parseObjectLiteralVertex(edge);
+
+                // TODO: work this out somewhere (since there are more reads)
+                assert(properties.length === 0);
+
+                // TODO: args!
+                return this._createNewMemoryLocation(Object.name);
+            }
+            case Syntax.PROPERTY_ACCESS_EXPRESSION: {
+                const {base, prop} = _parsePropertyAccessExpression(edge);
+                const baseVertex = this._resolveConstraint(base);
+                const propVertex = this._resolveConstraint(prop);
+
+                // TODO: add field link
+                this.peg.add([new Edge("FIELD", [propVertex], baseVertex)]);
+
+                return propVertex;
+            }
+            case Syntax.CALL_EXPRESSION: {
+                const {caller, args} = _parseCallExpression(edge);
+                const callerVertex = this._resolveConstraint(caller);
+
+                // TODO: deal with args
+                // TODO: add invocation link
+
+                return callerVertex;
+            }
+            default:
+                throw Error(`Don't know what to do wih ${label} vertex`);
+        }
+    }
+
+    private _createNewMemoryLocation(type: string): Vertex {
+        // TODO: include data like line, ctor args etc...
+
+        // TODO: maybe do this with a util?
+        const vertex = this.peg._fresh(type);
+        return vertex;
+    }
 }
 
+// TODO: move into syntax or something!
 function _isArrayLiteralVertex(vertex: Vertex): boolean {
     return vertex.incoming &&
         vertex.incoming.length === 1 &&
@@ -193,32 +276,102 @@ function _parseArrayLiteralVertex(vertex: Vertex): Vertex[] {
     assert(_isArrayLiteralVertex(vertex));
 
     // TODO: with pattern syntax
-    const arrayLiteralExpression = vertex.incoming[0];
-    assert(arrayLiteralExpression.sources.length === 3);
-    assert(arrayLiteralExpression.sources[0].label === "[");
-    assert(arrayLiteralExpression.sources[2].label === "]");
+    const [edge] = vertex.incoming;
+    assert(edge.sources.length === 3);
 
-    const syntaxListVertex = arrayLiteralExpression.sources[1];
-    assert(syntaxListVertex.incoming && syntaxListVertex.incoming.length === 1);
+    const [lparan, syntaxList, rparan] = edge.sources;
+    assert(lparan.label === "[");
+    assert(rparan.label === "]");
 
-    const syntaxList = syntaxListVertex.incoming[0];
-    assert(syntaxList.label === Syntax.SYNTAX_LIST);
+    return _parseSyntaxList(syntaxList);
+}
 
-    return syntaxList.sources.filter(_ => _.label !== ",");
+function _parseObjectLiteralVertex(edge: Edge): Vertex[] {
+    assert(edge.label === Syntax.OBJECT_LITERAL_EXPRESSION);
+
+    const [lparan, syntaxList, rparan] = edge.sources;
+    assert(lparan.label === "{");
+    assert(rparan.label === "}");
+
+    // TODO: this may be completely wrong (try with actual properties)
+    return _parseSyntaxList(syntaxList);
+}
+
+function _parseSyntaxList(vertex: Vertex): Vertex[] {
+    const [edge, label] = getEdgeAndLabel(vertex);
+    assert(label === Syntax.SYNTAX_LIST);
+
+    return edge.sources.filter(_ => _.label !== ",");
+}
+
+function _parsePropertyAccessExpression(edge: Edge): { base: Vertex, prop: Vertex } {
+    assert(edge.label === Syntax.PROPERTY_ACCESS_EXPRESSION);
+    assert(edge.sources.length === 3);
+
+    const [base, dot, prop] = edge.sources;
+    assert(dot.label === ".");
+
+    return {
+        base,
+        prop,
+    };
+}
+
+function _parseCallExpression(edge: Edge): { caller: Vertex, args: Vertex[] } {
+    assert(edge.label === Syntax.CALL_EXPRESSION);
+    assert(edge.sources.length === 4);
+
+    const [caller, lparan, args, rparan] = edge.sources;
+
+    assert(lparan.label === "(");
+    assert(rparan.label === ")");
+
+    return {
+        caller,
+        args: _parseSyntaxList(args),
+    };
+}
+
+function _parseNewExpression(edge: Edge): { type: Vertex, } {
+    assert(edge.label === Syntax.NEW_EXPRESSION);
+    assert(edge.sources.length === 2);
+
+    // TODO: what about args?
+    const [newKeyword, type] = edge.sources;
+
+    assert(newKeyword.label === "new");
+
+    // TODO: include defining file etc
+    return {
+        type,
+    };
 }
 
 function stripGibberish(vertex: Vertex): Vertex {
-    if (!vertex.incoming || vertex.incoming.length !== 1) return vertex;
+    const [edge, label] = getEdgeAndLabel(vertex);
+    if (!edge) {
+        return vertex;
+    }
 
-    const edge = vertex.incoming[0];
-    const { label, sources } = edge;
+    const {sources} = edge;
 
     switch (label) {
-        case Syntax.TYPE_ASSERTIONL_EXPRESSION:
+        case Syntax.TYPE_ASSERTION_EXPRESSION:
             // TODO: with pattern syntax
-            assert (sources.length === 4);
+            assert(sources.length === 4);
             return sources[3];
         default:
             return vertex;
     }
+}
+
+function getEdgeAndLabel(vertex: Vertex): [Edge, string] {
+    const {incoming} = vertex;
+
+    if (!incoming || incoming.length !== 1) return [null, vertex.label];
+
+    assert(incoming.length === 1);
+
+    const [edge] = incoming;
+    return [edge, edge.label];
 }
