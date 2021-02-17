@@ -5,8 +5,11 @@ import * as Syntax from "./syntax";
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
+type Iterable<T> = T[] | Generator<T> | IterableIterator<T>;
+
+// TODO: move to util
 // @ts-ignore
-function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T>, map: (obj: T) => Generator<TResult>): Generator<TResult> {
+function* lazyFlatMap<T, TResult>(arr: Iterable<T>, map: (obj: T) => Generator<TResult>): Generator<TResult> {
     if (!arr) return;
 
     for (let obj of arr) {
@@ -15,7 +18,7 @@ function* lazyFlatMap<T, TResult>(arr: T[] | Generator<T>, map: (obj: T) => Gene
 }
 
 // @ts-ignore
-function* lazyFilter<T>(arr: T[] | Generator<T>, filter: (obj: T) => boolean): Generator<T> {
+export function* lazyFilter<T>(arr: Iterable<T>, filter: (obj: T) => boolean): Generator<T> {
     if (!arr) return;
 
     for (let obj of arr) {

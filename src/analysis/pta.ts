@@ -1,5 +1,5 @@
 import {Hypergraph} from "./hypergraph";
-import {HMatcher, toSubtreeString} from "./pattern";
+import {HMatcher, toSubtreeString, lazyFilter} from "./pattern";
 import * as Syntax from "./syntax";
 import Vertex = Hypergraph.Vertex;
 import {getClosestScopeRouteDefinition} from "./semantics";
@@ -35,7 +35,6 @@ function _filterAssignments(assignmentExpr: Vertex): boolean {
 
     return true;
 }
-
 
 export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hypergraph<VData> {
     const m = new HMatcher(sourcePeg);
@@ -201,8 +200,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     }
 
     private _resolveScope(vertex: Vertex<VData>): Vertex {
-        // TODO: dedupe :-)
-        return this.peg._fresh(vertex.label);
+        return this._getVertexByLabel(vertex.label);
     }
 
     private _resolveConstraint(vertex: Vertex<VData>): Vertex {
@@ -212,8 +210,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // Simple name vertex
         if (!edge) {
             // TODO: deal with special values - this, null, undefined
-            // TODO: dedupe :-)
-            return this.peg._fresh(label);
+            return this._getVertexByLabel(label);
         }
 
         switch (label) {
@@ -256,12 +253,19 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         }
     }
 
+    private _getVertexByLabel(label: string): Vertex {
+        // TODO: scope, etc...
+        const vertices = Array.from(lazyFilter(this.peg.vertices.values(), v => v.label === label));
+
+        assert(vertices.length <= 1);
+
+        return vertices[0] || this.peg._fresh(label);
+    }
+
     private _createNewMemoryLocation(type: string): Vertex {
         // TODO: include data like line, ctor args etc...
 
-        // TODO: maybe do this with a util?
-        const vertex = this.peg._fresh(type);
-        return vertex;
+        return this._getVertexByLabel(type);
     }
 }
 
