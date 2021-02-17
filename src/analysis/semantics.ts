@@ -17,7 +17,7 @@ interface ScopeResolutionOptions {
 }
 
 export function getClosestScopeRouteDefinition(pattern: PatternDefinition, options: ScopeResolutionOptions): RoutePatternDefinition {
-    const {routeOverrides, patternsUnderScope=[], excludedScopes} = options;
+    const {routeOverrides, patternsUnderScope=[], excludedScopes=[]} = options;
 
     return {
         firstOnly: true,  // Only choose closest match

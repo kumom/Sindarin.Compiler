@@ -173,7 +173,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         const writeVertex = this._resolveConstraint(left);
 
         // Connect read and write
-        this.peg.add([new Edge("ASSIGNMENT", [readVertex], writeVertex)]);
+        this._link("ASSIGNMENT", readVertex, writeVertex);
 
         // Connect objects to scope
         // TODO: save the need for a root search
@@ -185,7 +185,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             }
 
             if (relevantOutgoing.length === 0) {
-                this.peg.add([new Edge("SCOPE", [v], scopeVertex)]);
+                this._link("SCOPE", v, scopeVertex);
                 return;
             }
 
@@ -200,7 +200,44 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     }
 
     private _resolveScope(vertex: Vertex<VData>): Vertex {
-        return this._getVertexByLabel(vertex.label);
+        let { label ,outgoing} = vertex;
+
+        // TODO: less hacky
+        assert (outgoing.length <= 1);
+        if (outgoing.length === 1 && outgoing[0].label === Syntax.CONSTRUCTOR) {
+            label = "constructor";
+        }
+
+        const scopeVertex = this._getVertexByLabel(label);
+
+        // TODO: with patterns, multi-method/function/class etc...
+        const connectScopeToClass = (v: Vertex) => {
+            // Already connected to scope
+            if (v.outgoing.length === 0) {
+                return;
+            }
+
+            assert (v.outgoing.length === 1)
+
+            const [edge] = v.outgoing;
+
+            // TODO: parse class correctly (and support different scope kinds)
+            if (edge.label === Syntax.CLASS_DECLARATION) {
+                assert (edge.sources.length >= 2);
+
+                const className = edge.sources[1].label;
+                const classVertex = this._getVertexByLabel(className);
+
+                this._link("CLASS", scopeVertex, classVertex);
+                return;
+            }
+
+            connectScopeToClass(edge.target);
+        };
+
+        connectScopeToClass(vertex);
+
+        return scopeVertex;
     }
 
     private _resolveConstraint(vertex: Vertex<VData>): Vertex {
@@ -235,7 +272,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 const propVertex = this._resolveConstraint(prop);
 
                 // TODO: add field link
-                this.peg.add([new Edge("FIELD", [propVertex], baseVertex)]);
+                this._link("FIELD", propVertex, baseVertex);
 
                 return propVertex;
             }
@@ -266,6 +303,15 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // TODO: include data like line, ctor args etc...
 
         return this._getVertexByLabel(type);
+    }
+
+    private _link(type: string, source, target: Vertex) {
+        // TODO: get rid of this
+        if (this.peg.edges.some(e => e.label === type && e.target === target && e.sources.indexOf(source) !== -1)) {
+            return;
+        }
+
+        this.peg.add([new Edge(type, [source], target)]);
     }
 }
 

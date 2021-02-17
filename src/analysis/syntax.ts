@@ -2,6 +2,7 @@ import * as SetOps from "../infra/setops";
 
 export const CLASS_DECLARATION = "ClassDeclaration";
 export const METHOD_DECLARATION = "MethodDeclaration";
+export const CONSTRUCTOR = "Constructor";
 export const BLOCK = "block";
 export const CATCH_CLAUSE = "CatchClause";
 
@@ -41,6 +42,7 @@ export const ALL = new Set([
     METHOD_DECLARATION,
     CATCH_CLAUSE,
     PARAMETER,
+    CONSTRUCTOR,
 ]);
 
 export const SCOPES = [
@@ -48,6 +50,7 @@ export const SCOPES = [
     METHOD_DECLARATION,
     BLOCK,
     CATCH_CLAUSE,
+    CONSTRUCTOR,
 ];
 
 export const EXPRESSIONS = SetOps.diff(ALL, SCOPES);
