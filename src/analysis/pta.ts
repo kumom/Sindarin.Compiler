@@ -182,14 +182,14 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // Connect objects to scope
         // TODO: save the need for a root search
         const connectRootToScope = (v: Vertex) => {
-            //     // Already connected to scope
+            // Already connected to scope
             const relevantOutgoing = v.outgoing.filter(_ => _.label === "FIELD");
             if (relevantOutgoing.some(_ => _.label === "SCOPE")) {
                 return;
             }
 
             if (relevantOutgoing.length === 0) {
-                this._link("SCOPE", v, scopeVertex);
+                // this._link("SCOPE", v, scopeVertex);
                 return;
             }
         };
@@ -217,14 +217,14 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         return scopeVertex;
     }
 
-    private _resolveConstraint(vertex: Vertex<VData>, scope?: Vertex<VData>): Vertex {
+    private _resolveConstraint(vertex: Vertex<VData>, scope?: Vertex): Vertex {
         // TODO: deal with context (e.g. Call Expression)
         const [edge, label] = getEdgeAndLabel(vertex);
 
         // Simple name vertex
         if (!edge) {
             // TODO: deal with special values - this, null, undefined
-            return this._getVertexByLabel(label);
+            return this._getVertexByLabel(label, scope);
         }
 
         switch (label) {
@@ -232,7 +232,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 const {type} = _parseNewExpression(edge);
 
                 // TODO: args!
-                return this._createNewMemoryLocation(type.label);
+                return this._createNewMemoryLocation(type.label, scope);
             }
             case Syntax.OBJECT_LITERAL_EXPRESSION: {
                 const properties = _parseObjectLiteralVertex(edge);
@@ -241,7 +241,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 assert(properties.length === 0);
 
                 // TODO: args!
-                return this._createNewMemoryLocation(Object.name);
+                return this._createNewMemoryLocation(Object.name, scope);
             }
             case Syntax.PROPERTY_ACCESS_EXPRESSION: {
                 const {base, prop} = _parsePropertyAccessExpression(edge);
@@ -267,19 +267,25 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         }
     }
 
-    private _getVertexByLabel(label: string): Vertex {
-        // TODO: scope, etc...
+    private _getVertexByLabel(label: string, scope?: Vertex): Vertex {
         const vertices = Array.from(lazyFilter(this.peg.vertices.values(), v => v.label === label));
 
         assert(vertices.length <= 1);
 
-        return vertices[0] || this.peg._fresh(label);
+        const result = vertices[0] || this.peg._fresh(label);
+
+        // Allow same name under different scopes
+        if (!isGlobalName(label) && scope) {
+            this._link("SCOPE", result, scope);
+        }
+
+        return result;
     }
 
-    private _createNewMemoryLocation(type: string): Vertex {
+    private _createNewMemoryLocation(type: string, scope?: Vertex): Vertex {
         // TODO: include data like line, ctor args etc...
 
-        return this._getVertexByLabel(type);
+        return this._getVertexByLabel(type, scope);
     }
 
     private _link(type: string, source, target: Vertex) {
@@ -293,6 +299,14 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 }
 
 // TODO: move into syntax or something!
+const GLOBAL_NAMES = new Set([
+    "null",
+    "undefined",
+]);
+function isGlobalName(name: string): boolean {
+    return GLOBAL_NAMES.has(name);
+}
+
 function _isArrayLiteralVertex(vertex: Vertex): boolean {
     return vertex.incoming &&
         vertex.incoming.length === 1 &&

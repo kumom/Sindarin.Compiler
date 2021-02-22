@@ -8,7 +8,7 @@ import PatternDefinition = HMatcher.PatternDefinition;
 // Not really, but close enough :shrug
 const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;
 const NUMBER_REGEX = /^\d*$/;
-function isScopeName(name) {
+function isScopeName(name: string) {
     return name && VARIABLE_NAME_REGEX.test(name) && !NUMBER_REGEX.test(name) && !Syntax.RESERVED_KEYWORDS.has(name);
 }
 
