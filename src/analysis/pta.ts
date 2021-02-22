@@ -56,7 +56,7 @@ export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hy
     });
 
     // 3) Add to Andersen graph
-    const analysis: PointsToAnalysis<VData> = new AndersenAnalyis(sourcePeg._max);
+    const analysis: PointsToAnalysis<VData> = new AndersenAnalyis(sourcePeg._max, m);
     supportedAssignments.forEach(analysis.addConstraint.bind(analysis));
 
     // 4) Solve constraints
@@ -100,10 +100,13 @@ interface PointsToAnalysis<VData> {
 
 class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     peg: Hypergraph<VData>;
+    matcher: HMatcher<VData>;
 
-    constructor(max: number) {
+    constructor(max: number, matcher: HMatcher<VData>) {
         this.peg = new Hypergraph<VData>();
         this.peg._max = max;
+
+        this.matcher = matcher;
     }
 
     addConstraint(expr: AnalysisExpression<VData>) {
@@ -170,8 +173,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
     private _resolveWriteConstraint(scope, left, right: Vertex<VData>) {
         const scopeVertex = this._resolveScope(scope);
-        const readVertex = this._resolveConstraint(right);
-        const writeVertex = this._resolveConstraint(left);
+        const readVertex = this._resolveConstraint(right, scopeVertex);
+        const writeVertex = this._resolveConstraint(left, scopeVertex);
 
         // Connect read and write
         this._link("ASSIGNMENT", readVertex, writeVertex);
@@ -179,7 +182,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // Connect objects to scope
         // TODO: save the need for a root search
         const connectRootToScope = (v: Vertex) => {
-            // Already connected to scope
+            //     // Already connected to scope
             const relevantOutgoing = v.outgoing.filter(_ => _.label === "FIELD");
             if (relevantOutgoing.some(_ => _.label === "SCOPE")) {
                 return;
@@ -189,59 +192,32 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 this._link("SCOPE", v, scopeVertex);
                 return;
             }
-
-            // TODO: baaaaad
-            assert(relevantOutgoing.length === 1);
-            const {target} = relevantOutgoing[0];
-            connectRootToScope(target);
         };
-
+        //
         connectRootToScope(readVertex);
         connectRootToScope(writeVertex);
     }
 
     private _resolveScope(vertex: Vertex<VData>): Vertex {
-        let {label, outgoing} = vertex;
-
-        // TODO: less hacky
-        assert(outgoing.length <= 1);
-        // if (outgoing.length === 1 && outgoing[0].label === Syntax.CONSTRUCTOR) {
-        //     label = "constructor";
-        // }
-
+        const {label, outgoing} = vertex;
         const scopeVertex = this._getVertexByLabel(label);
 
-        // TODO: with patterns, multi-method/function/class etc...
-        const connectScopeToClass = (v: Vertex) => {
-            // Already connected to scope
-            if (v.outgoing.length === 0) {
-                return;
-            }
+        assert(outgoing.length === 1);
 
-            assert(v.outgoing.length === 1)
+        const parentScopeDefinitions = getClosestScopeNameRouteDefinition({vertex});
+        const parentScopeMatches = this.matcher.collectPatternDefinition(parentScopeDefinitions);
 
-            const [edge] = v.outgoing;
+        if (parentScopeMatches.length) {
+            const [[_, parentScope]] = parentScopeMatches;
 
-            // TODO: parse class correctly (and support different scope kinds)
-            if (edge.label === Syntax.CLASS_DECLARATION) {
-                assert(edge.sources.length >= 2);
-
-                const className = edge.sources[1].label;
-                const classVertex = this._getVertexByLabel(className);
-
-                this._link("CLASS", scopeVertex, classVertex);
-                return;
-            }
-
-            connectScopeToClass(edge.target);
-        };
-
-        connectScopeToClass(vertex);
+            const parentScopeVertex = this._resolveScope(parentScope);
+            this._link("PARENT_SCOPE", scopeVertex, parentScopeVertex);
+        }
 
         return scopeVertex;
     }
 
-    private _resolveConstraint(vertex: Vertex<VData>): Vertex {
+    private _resolveConstraint(vertex: Vertex<VData>, scope?: Vertex<VData>): Vertex {
         // TODO: deal with context (e.g. Call Expression)
         const [edge, label] = getEdgeAndLabel(vertex);
 
@@ -261,7 +237,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             case Syntax.OBJECT_LITERAL_EXPRESSION: {
                 const properties = _parseObjectLiteralVertex(edge);
 
-                // TODO: work this out somewhere (since there are more reads)
+                // TODO: work this out (since there are more reads)
                 assert(properties.length === 0);
 
                 // TODO: args!

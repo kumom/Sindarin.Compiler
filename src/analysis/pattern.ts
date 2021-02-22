@@ -64,6 +64,7 @@ interface PatternDefinitionPayload {
     topLevel?: boolean;  // Is Top Level of search
     resolve?: "sources" | "targets";
     resultFilter?: (route: Route<any>) => boolean;
+    reflexive?: boolean;
 }
 
 function getRouteKey<VData>(route: Route<VData>) {
@@ -169,7 +170,7 @@ class HMatcher<VData = any> {
      * @param definitions how to traverse the graph
      */
     resolvePatternDefinitions(pattern: HMatcher.RoutePatternDefinition, handler: (route: Route<VData>) => void) {
-        const {definitions, firstOnly, resultFilter} = pattern;
+        const {definitions, firstOnly, resultFilter, reflexive = true} = pattern;
 
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
@@ -193,6 +194,7 @@ class HMatcher<VData = any> {
             topLevel: true,
             resolve,
             resultFilter,
+            reflexive,
         });
     }
 
@@ -216,6 +218,7 @@ namespace HMatcher {
         definitions?: PatternDefinition[];
         firstOnly?: boolean;  // Get only first route (per stating-set element)
         resultFilter?: (route: Route<any>) => boolean;
+        reflexive?: boolean;  // Defaults to true
     }
 
     export interface PatternDefinition {
@@ -332,7 +335,7 @@ namespace HMatcher {
         resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
             const {labelPred, vertex, index, through, modifier, excluding} = nextDefinition || {};
-            const {vertexLabelPat, visited, firstOnly, topLevel, resolve, resultFilter} = payload;
+            const {vertexLabelPat, visited, firstOnly, topLevel, resolve, resultFilter, reflexive} = payload;
 
             const methodBase = THROUGH_TO_METHOD[through];
             const method = modifier ? `${methodBase}_${modifier}` : methodBase;
@@ -372,6 +375,11 @@ namespace HMatcher {
 
             const routeHandler = (u) => {
                 if (!topLevel && found && firstOnly) {
+                    return;
+                }
+
+                // Prevent direct links for the same vertex
+                if (!reflexive && route && route[route.length - 1] === u) {
                     return;
                 }
 

@@ -26,6 +26,7 @@ export function getClosestScopeRouteDefinition(pattern: PatternDefinition, optio
 
     return {
         firstOnly: true,  // Only choose closest match
+        reflexive: false,
         definitions: [
             pattern,  // Start with our expression
             {  // Find all scopes it is defined under
@@ -40,7 +41,7 @@ export function getClosestScopeRouteDefinition(pattern: PatternDefinition, optio
     };
 }
 
-export function getClosestScopeNameRouteDefinition(pattern: PatternDefinition, options: ScopeResolutionOptions): RoutePatternDefinition {
+export function getClosestScopeNameRouteDefinition(pattern: PatternDefinition, options?: ScopeResolutionOptions): RoutePatternDefinition {
     if (options && options.patternsUnderScope) {
         throw new Error("Can't specify patterns under scope in this case");
     }
