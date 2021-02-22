@@ -7,6 +7,11 @@ import PatternDefinition = HMatcher.PatternDefinition;
 
 // Not really, but close enough :shrug
 const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;
+const NUMBER_REGEX = /^\d*$/;
+function isScopeName(name) {
+    return name && VARIABLE_NAME_REGEX.test(name) && !NUMBER_REGEX.test(name) && !Syntax.RESERVED_KEYWORDS.has(name);
+}
+
 
 const DEFINITION_LABEL = 'DEFINITION';
 
@@ -33,6 +38,20 @@ export function getClosestScopeRouteDefinition(pattern: PatternDefinition, optio
         ],
         ...routeOverrides,
     };
+}
+
+export function getClosestScopeNameRouteDefinition(pattern: PatternDefinition, options: ScopeResolutionOptions): RoutePatternDefinition {
+    if (options && options.patternsUnderScope) {
+        throw new Error("Can't specify patterns under scope in this case");
+    }
+
+    return getClosestScopeRouteDefinition(pattern, {
+        ...options,
+        patternsUnderScope: [{
+            index: 0,
+            labelPred: isScopeName,
+        }]
+    })
 }
 
 function _getClosestScopeRouteDefinitionForVertex<VData>(vertex: Vertex<VData>, ...patternsUnderScope: PatternDefinition[]): RoutePatternDefinition {

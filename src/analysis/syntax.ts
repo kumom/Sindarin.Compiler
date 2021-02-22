@@ -60,3 +60,8 @@ export function isSyntaxToken(token): boolean {
 }
 
 export const isNonSyntaxToken = token => !isSyntaxToken(token);
+
+export const RESERVED_KEYWORDS = new Set([
+  "class",
+  "function",
+]);

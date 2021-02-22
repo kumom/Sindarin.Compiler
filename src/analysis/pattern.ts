@@ -33,7 +33,7 @@ const DEFAULT_VALUES = {
     "undefined": undefined,
 };
 
-export function toSubtreeString(vertex: Vertex, sep = " ", includeSyntaxTokens=false): string {
+export function toSubtreeString(vertex: Vertex, sep = " ", includeSyntaxTokens = false): string {
     const allTokens = toSubtreeStringVertexGen(vertex);
     const relevantTokens = includeSyntaxTokens ? allTokens : lazyFilter(allTokens, Syntax.isNonSyntaxToken);
     const result = Array.from(relevantTokens).join(sep);
@@ -63,7 +63,7 @@ interface PatternDefinitionPayload {
     firstOnly?: boolean;
     topLevel?: boolean;  // Is Top Level of search
     resolve?: "sources" | "targets";
-    resultFilter: (route: Route<any>) => boolean;
+    resultFilter?: (route: Route<any>) => boolean;
 }
 
 function getRouteKey<VData>(route: Route<VData>) {
@@ -100,6 +100,16 @@ class HMatcher<VData = any> {
         }
 
         return this._matched(() => aux());
+    }
+
+    /**
+     * Matches by target
+     * @param target path end point
+     * @param label label(s) of final edge
+     */
+    lt(target: Vertex<VData>, label?: LabelPat, excluding?: LabelPat) {
+        const p = HMatcher.toObjectWithLabel(label);
+        return this._matched(() => lazyFilter<Edge>(target.incoming, p));
     }
 
     /**
@@ -167,8 +177,8 @@ class HMatcher<VData = any> {
 
         const [firstDefinition, ...restOfDefinitions] = definitions;
 
-        const {labelPred, vertex, resolve, through, modifier, excluding} = firstDefinition;
-        if (through || modifier || excluding) {
+        const {labelPred, vertex, index, resolve, through, modifier, excluding} = firstDefinition;
+        if (index || through || modifier || excluding) {
             throw new Error("First definition can only define `labelPred`, `vertex` or `resolve`")
         }
 
@@ -211,6 +221,7 @@ namespace HMatcher {
     export interface PatternDefinition {
         labelPred?: LabelPat;  // Label matcher
         vertex?: Vertex; // For first definition only!
+        index?: number; // Child vertex resolution
 
         through?: "incoming" | "outgoing";  // Traversal direction
         resolve?: "sources" | "targets";  // Resolution node direction (defaults to sources)
@@ -251,7 +262,7 @@ namespace HMatcher {
         if (typeof l == 'string') return (s: string) => s == l;
         else if (Array.isArray(l)) return (s: string) => l.includes(s);
         else if (l instanceof Set) return (s: string) => l.has(s);
-        else if (l instanceof RegExp) return (s: string) => !!s.match(l);
+        else if (l instanceof RegExp) return (s: string) => s && l.test(s);
         else return l;
     }
 
@@ -269,6 +280,19 @@ namespace HMatcher {
 
         e(cont: (e: Edge) => void | boolean) {  // iterates edges
             for (let e of this.gen) cont(e)
+        }
+
+        idx(cont: (t: Vertex<VData>) => void | boolean, index: number, labelPat?: LabelPat) {  // child vertices
+            const p = !labelPat ? LANY_LABEL : toObjectWithLabel(labelPat);
+            this.e(e => {
+                const filteredSources = e.sources.filter(p);
+
+                if (filteredSources.length <= index) {
+                    throw new Error("index out of range");
+                }
+
+                cont(filteredSources[index]);
+            });
         }
 
         t(cont: (t: Vertex<VData>) => void | boolean, labelPat?: LabelPat) {  // iterates edge targets
@@ -307,7 +331,7 @@ namespace HMatcher {
 
         resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
-            const {labelPred, vertex, through, modifier, excluding} = nextDefinition || {};
+            const {labelPred, vertex, index, through, modifier, excluding} = nextDefinition || {};
             const {vertexLabelPat, visited, firstOnly, topLevel, resolve, resultFilter} = payload;
 
             const methodBase = THROUGH_TO_METHOD[through];
@@ -319,8 +343,8 @@ namespace HMatcher {
                     throw new Error("Inner match definitions cannot define `vertex`");
                 }
 
-                if (!through) {
-                    throw new Error("Inner match definitions must define `through`");
+                if (!through && index === undefined) {
+                    throw new Error("Inner non-index match definitions must define `through`");
                 }
 
                 if (resolve && resolve !== "sources" && resolve !== "targets") {
@@ -331,8 +355,16 @@ namespace HMatcher {
                     throw new Error("Inner match definitions must be `rtc` to define `excluding`");
                 }
 
-                if (!this.matcher[method]) {
-                    throw new Error(`Method ${method} does not exist on HMatcher`);
+                // Index mode
+                if (index !== undefined) {
+                    if (through || modifier || excluding || vertexLabelPat) {
+                        throw new Error("Illeagal definition for index resolution")
+
+                    }
+                } else {
+                    if (!this.matcher[method]) {
+                        throw new Error(`Method ${method} does not exist on HMatcher`);
+                    }
                 }
             }
 
@@ -355,12 +387,16 @@ namespace HMatcher {
 
                 // Not done yet
                 if (!isRouteDone) {
-                    const subquery: Matched<VData> = this.matcher[method](u, labelPred, excluding);
+                    const subquery: Matched<VData> = index !== undefined ?
+                        this.matcher.v(u) :
+                        this.matcher[method](u, labelPred, excluding);
+
                     const nextPayload = {
                         ...payload,
                         vertexLabelPat: nextDefinition.vertexLabelPat,
                         topLevel: false,
                         resolve: nextDefinition.resolve,
+                        index: nextDefinition.index,
                     };
 
                     found = subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);
@@ -376,7 +412,9 @@ namespace HMatcher {
                 return;
             };
 
-            if (resolve === "targets") {
+            if (index !== undefined) {
+                this.idx(routeHandler, index, labelPred);
+            } else if (resolve === "targets") {
                 this.t(routeHandler, vertexLabelPat);
             } else {
                 this.s(routeHandler, vertexLabelPat);

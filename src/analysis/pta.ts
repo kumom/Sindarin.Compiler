@@ -2,7 +2,7 @@ import {Hypergraph} from "./hypergraph";
 import {HMatcher, toSubtreeString, lazyFilter} from "./pattern";
 import * as Syntax from "./syntax";
 import Vertex = Hypergraph.Vertex;
-import {getClosestScopeRouteDefinition} from "./semantics";
+import {getClosestScopeNameRouteDefinition} from "./semantics";
 import Edge = Hypergraph.Edge;
 import assert from "assert";
 import {BINARY_EXPRESSION} from "./syntax";
@@ -18,7 +18,7 @@ const ASSIGNMENT_EXPRESSIONS = [
 // TODO: Support parameters and return value linking
 const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0, 2));
 
-const ASSIGNMENT_FILTER = ([assignmentExpr, _]) => _filterAssignments(assignmentExpr);
+const ASSIGNMENT_FILTER = ([assignmentExpr, scope, _]) => _filterAssignments(assignmentExpr);
 
 function _filterAssignments(assignmentExpr: Vertex): boolean {
     const {incoming} = assignmentExpr;
@@ -40,7 +40,7 @@ export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hy
     const m = new HMatcher(sourcePeg);
 
     // 1) Collect assignments
-    const assignments = m.collectPatternDefinition(getClosestScopeRouteDefinition({
+    const assignments = m.collectPatternDefinition(getClosestScopeNameRouteDefinition({
         labelPred: ASSIGNMENT_EXPRESSIONS,
         resolve: "targets",
     }, {
@@ -73,7 +73,7 @@ interface AnalysisExpression<VData> {
     repr: string;
 }
 
-const ANALYSIS_EXPRESSION_FACTORY = ([assignmentExpr, scope]) => _createAnalysisExpression(assignmentExpr, scope);
+const ANALYSIS_EXPRESSION_FACTORY = ([assignmentExpr, scope, _]) => _createAnalysisExpression(assignmentExpr, scope);
 
 function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: Vertex<VData>): AnalysisExpression<VData> {
     const {incoming} = assignmentExpr;
@@ -94,6 +94,7 @@ function _createAnalysisExpression<VData>(assignmentExpr: Vertex<VData>, scope: 
 
 interface PointsToAnalysis<VData> {
     addConstraint(expr: AnalysisExpression<VData>);
+
     solveConstraints(): Hypergraph<VData>;
 }
 
@@ -200,13 +201,13 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     }
 
     private _resolveScope(vertex: Vertex<VData>): Vertex {
-        let { label ,outgoing} = vertex;
+        let {label, outgoing} = vertex;
 
         // TODO: less hacky
-        assert (outgoing.length <= 1);
-        if (outgoing.length === 1 && outgoing[0].label === Syntax.CONSTRUCTOR) {
-            label = "constructor";
-        }
+        assert(outgoing.length <= 1);
+        // if (outgoing.length === 1 && outgoing[0].label === Syntax.CONSTRUCTOR) {
+        //     label = "constructor";
+        // }
 
         const scopeVertex = this._getVertexByLabel(label);
 
@@ -217,13 +218,13 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 return;
             }
 
-            assert (v.outgoing.length === 1)
+            assert(v.outgoing.length === 1)
 
             const [edge] = v.outgoing;
 
             // TODO: parse class correctly (and support different scope kinds)
             if (edge.label === Syntax.CLASS_DECLARATION) {
-                assert (edge.sources.length >= 2);
+                assert(edge.sources.length >= 2);
 
                 const className = edge.sources[1].label;
                 const classVertex = this._getVertexByLabel(className);
