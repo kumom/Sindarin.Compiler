@@ -191,7 +191,7 @@ class HMatcher<VData = any> {
 
         const {labelPred, vertex, vertexLabelPat, index, resolve, through, modifier, excluding} = firstDefinition;
         if (index || through || modifier || excluding) {
-            throw new Error("First definition can only define `labelPred`, `vertex` or `resolve`")
+            throw new Error("First definition can only define `labelPred`, `vertex`, `vertexLabelPat`, and `resolve`")
         }
 
         if ([labelPred, vertexLabelPat, vertex].filter(_ => _).length !== 1) {

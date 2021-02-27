@@ -185,8 +185,49 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             this._link(LINK_TYPES.SOLVED, thisVertex, classVertex);
         });
 
-        // Resolve special link types
-        // TODO
+        // Propagate return value through invocations
+        // TODO: deal with non-instance functions as well
+        // TODO: treat different objects differently..
+        ptaMatcher.resolvePatternDefinitions({
+            definitions: [
+                {labelPred: LINK_TYPES.INVOCATION, resolve: "targets"},  // Find vertices assigned by invocations
+                {labelPred: LINK_TYPES.INVOCATION, through: "incoming"},  // Find incoming invocations
+                {vertexLabelPat: "this", labelPred: LINK_TYPES.FIELD, through: "outgoing", resolve: "targets"},  // Find defining instance
+                {labelPred: LINK_TYPES.SOLVED, through: "outgoing", resolve: "targets"},  // Find class declaration
+                {labelPred: LINK_TYPES.CLASS, through: "incoming"},  // Find relevant method declaration
+                {labelPred: LINK_TYPES.RETURN_VALUE, through: "incoming"},  // Get return value
+            ],
+        }, (route) => {
+            const [variable, method1, _1, _2, method2, returnValue] = route;
+
+            // TODO: allow query language to do this
+            if (method1.label !== method2.label) {
+                return;
+            }
+
+            this._link(LINK_TYPES.SOLVED, returnValue, variable);
+        });
+
+        // TODO: Resolve all special link types
+
+        // Propagate constraints based on assignments
+        // TODO: combine into RTC modifier somehow...
+        while (true) {
+            let changed = false;
+
+            ptaMatcher.resolvePatternDefinitions({
+                reflexive: false,
+                definitions: [
+                    {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT]},
+                    {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT], through: "outgoing", resolve: "targets"},
+                    {labelPred: LINK_TYPES.ASSIGNMENT, through: "outgoing", resolve: "targets"},
+                ],
+            }, ([src, _, target]) => {
+                this._link(LINK_TYPES.SOLVED, src, target);
+            });
+
+            if (!changed) break;
+        }
 
         return this.peg;
     }
@@ -351,18 +392,25 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
         // Known name - verify that the scope is the same
         const relevantVertices = vertices.filter(vertex => {
-            const scopeEdges = vertex.outgoing.filter(_ => _.label === LINK_TYPES.SCOPE);
+            const {outgoing} = vertex;
+
+            // If this is global/class scope name and is used as field - we don't want this vertex
+            if (!scope && outgoing.some(_ => _.label === LINK_TYPES.FIELD)) {
+                return false;
+            }
+
+            const scopeEdges = outgoing.filter(_ => _.label === LINK_TYPES.SCOPE);
 
             // Some objects won't have a scope, like null or classes
-            if (!scope || scopeEdges.length === 0) return true;
+            if (scopeEdges.length === 0) return !scope;
 
             assert(scopeEdges.length === 1);
 
             const existingScope = scopeEdges[0].target;
-            return scope == existingScope;
+            return scope === existingScope;
         });
 
-        assert (relevantVertices.length <= 1)
+        assert(relevantVertices.length <= 1)
 
         return relevantVertices[0] || this.peg._fresh(label);
     }
