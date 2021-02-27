@@ -98,6 +98,12 @@ interface PointsToAnalysis<VData> {
     solveConstraints(): Hypergraph<VData>;
 }
 
+interface ResolvedConstraint {
+    top: Vertex;
+    bottom: Vertex;
+    type?: null | "INVOCATION" | "INSTANTIATION";
+}
+
 class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     peg: Hypergraph<VData>;
     matcher: HMatcher<VData>;
@@ -173,29 +179,35 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
     private _resolveWriteConstraint(scope, left, right: Vertex<VData>) {
         const scopeVertex = this._resolveScope(scope);
-        const readVertex = this._resolveConstraint(right, scopeVertex);
-        const writeVertex = this._resolveConstraint(left, scopeVertex);
+        const readConstraint = this._resolveConstraint(right, scopeVertex);
+        const writeConstraint = this._resolveConstraint(left, scopeVertex);
+
+        assert (!writeConstraint.type)
 
         // Connect read and write
-        this._link("ASSIGNMENT", readVertex, writeVertex);
+        // TODO: add return value assignment
+        this._link(readConstraint.type || "ASSIGNMENT", readConstraint.bottom, writeConstraint.bottom);
 
         // Connect objects to scope
-        // TODO: save the need for a root search
-        const connectRootToScope = (v: Vertex) => {
+        [readConstraint, writeConstraint].forEach(({top, bottom, type}) => {
+            // Don't connect to scope if this is not an assignment constraint
+            if (type) {
+                return;
+            }
+
+            const v = top || bottom;
+
             // Already connected to scope
-            const relevantOutgoing = v.outgoing.filter(_ => _.label === "FIELD");
+            const relevantOutgoing = v.outgoing; // WHAT?: .filter(_ => _.label === "FIELD");
             if (relevantOutgoing.some(_ => _.label === "SCOPE")) {
                 return;
             }
 
-            if (relevantOutgoing.length === 0) {
-                // this._link("SCOPE", v, scopeVertex);
-                return;
+            // Allow same name under different scopes
+            if (!isGlobalName(v.label) && scopeVertex) {
+                this._link("SCOPE", v, scopeVertex);
             }
-        };
-        //
-        connectRootToScope(readVertex);
-        connectRootToScope(writeVertex);
+        });
     }
 
     private _resolveScope(vertex: Vertex<VData>): Vertex {
@@ -217,14 +229,15 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         return scopeVertex;
     }
 
-    private _resolveConstraint(vertex: Vertex<VData>, scope?: Vertex): Vertex {
+    private _resolveConstraint(vertex: Vertex<VData>, scope?: Vertex): ResolvedConstraint {
         // TODO: deal with context (e.g. Call Expression)
         const [edge, label] = getEdgeAndLabel(vertex);
 
         // Simple name vertex
         if (!edge) {
             // TODO: deal with special values - this, null, undefined
-            return this._getVertexByLabel(label, scope);
+            const vertex = this._getVertexByLabel(label, scope);
+            return {top: null, bottom: vertex};
         }
 
         switch (label) {
@@ -245,22 +258,27 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             }
             case Syntax.PROPERTY_ACCESS_EXPRESSION: {
                 const {base, prop} = _parsePropertyAccessExpression(edge);
-                const baseVertex = this._resolveConstraint(base);
-                const propVertex = this._resolveConstraint(prop);
+                const {bottom: baseBottom, top: baseTop, type: baseType} = this._resolveConstraint(base);
+                const {bottom: propBottom, top: propTop, type: propType} = this._resolveConstraint(prop);
+
+                assert(!baseType);
+                assert(!propType);
+                assert(!propTop);
 
                 // TODO: add field link
-                this._link("FIELD", propVertex, baseVertex);
+                this._link("FIELD", propBottom, baseBottom);
 
-                return propVertex;
+                return {top: baseTop, bottom: propBottom};
             }
             case Syntax.CALL_EXPRESSION: {
                 const {caller, args} = _parseCallExpression(edge);
-                const callerVertex = this._resolveConstraint(caller);
+                const {bottom, top, type} = this._resolveConstraint(caller);
 
                 // TODO: deal with args
-                // TODO: add invocation link
 
-                return callerVertex;
+                assert(!type)
+
+                return {bottom, top, type: "INVOCATION"};
             }
             default:
                 throw Error(`Don't know what to do wih ${label} vertex`);
@@ -273,19 +291,14 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         assert(vertices.length <= 1);
 
         const result = vertices[0] || this.peg._fresh(label);
-
-        // Allow same name under different scopes
-        if (!isGlobalName(label) && scope) {
-            this._link("SCOPE", result, scope);
-        }
-
         return result;
     }
 
-    private _createNewMemoryLocation(type: string, scope?: Vertex): Vertex {
+    private _createNewMemoryLocation(type: string, scope?: Vertex): ResolvedConstraint {
         // TODO: include data like line, ctor args etc...
 
-        return this._getVertexByLabel(type, scope);
+        const vertex = this._getVertexByLabel(type, scope);
+        return {top: null, bottom: vertex, type: "INSTANTIATION"};
     }
 
     private _link(type: string, source, target: Vertex) {
@@ -303,6 +316,7 @@ const GLOBAL_NAMES = new Set([
     "null",
     "undefined",
 ]);
+
 function isGlobalName(name: string): boolean {
     return GLOBAL_NAMES.has(name);
 }
