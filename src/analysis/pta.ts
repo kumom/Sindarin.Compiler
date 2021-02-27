@@ -206,8 +206,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             if (!v) return;
 
             // Already connected to scope
-            const relevantOutgoing = v.outgoing; // WHAT?: .filter(_ => _.label === "FIELD");
-            if (relevantOutgoing.some(_ => _.label === "SCOPE")) {
+            if (v.outgoing.some(_ => _.label === "SCOPE")) {
                 return;
             }
 
@@ -228,10 +227,13 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         const parentScopeMatches = this.matcher.collectPatternDefinition(parentScopeDefinitions);
 
         if (parentScopeMatches.length) {
-            const [[_, parentScope]] = parentScopeMatches;
+            assert(parentScopeMatches.length === 1);
 
+            const [[_, parentScope]] = parentScopeMatches;
             const parentScopeVertex = this._resolveScope(parentScope);
-            this._link("PARENT_SCOPE", scopeVertex, parentScopeVertex);
+
+            const [__, label] = getOutgoingEdgeAndLabel(parentScope);
+            this._link(label === Syntax.CLASS_DECLARATION ? "CLASS" : "PARENT_SCOPE", scopeVertex, parentScopeVertex);
         }
 
         return scopeVertex;
@@ -289,7 +291,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 return {bottom, top, type: "INVOCATION"};
             }
             case Syntax.ARROW_FUNCTION: {
-                // TODO: bind this inside arrow
+                // TODO: bind `this` inside arrow
                 // TODO: parse it and give it a name?
                 const vertex = this._getVertexByLabel("undefined", scope);
                 return {top: null, bottom: vertex};
@@ -450,12 +452,18 @@ function stripGibberish(vertex: Vertex): Vertex {
 }
 
 function getEdgeAndLabel(vertex: Vertex): [Edge, string] {
-    const {incoming} = vertex;
+    return _getEdgeAndLabel(vertex, vertex.incoming);
+}
 
-    if (!incoming || incoming.length !== 1) return [null, vertex.label];
+function _getEdgeAndLabel(vertex: Vertex, edgeGroup: Edge[]): [Edge, string] {
+    if (!edgeGroup || edgeGroup.length !== 1) return [null, vertex.label];
 
-    assert(incoming.length === 1);
+    assert(edgeGroup.length === 1);
 
-    const [edge] = incoming;
+    const [edge] = edgeGroup;
     return [edge, edge.label];
+}
+
+function getOutgoingEdgeAndLabel(vertex: Vertex): [Edge, string] {
+    return _getEdgeAndLabel(vertex, vertex.outgoing);
 }
