@@ -9,6 +9,7 @@ export const CATCH_CLAUSE = "CatchClause";
 export const SYNTAX_LIST = "SyntaxList";
 export const VARIABLE_DECLARATION = "VariableDeclaration";
 export const PARAMETER = "Parameter";
+export const ARROW_FUNCTION = "ArrowFunction";
 
 export const RETURN_STATEMENT = "ReturnStatement";
 
@@ -43,6 +44,7 @@ export const ALL = new Set([
     CATCH_CLAUSE,
     PARAMETER,
     CONSTRUCTOR,
+    ARROW_FUNCTION,
 ]);
 
 export const SCOPES = [

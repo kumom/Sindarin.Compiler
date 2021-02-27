@@ -20,6 +20,8 @@ const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0,
 
 const ASSIGNMENT_FILTER = ([assignmentExpr, scope, _]) => _filterAssignments(assignmentExpr);
 
+
+// TODO: support simple invocations as well do to side effects?
 function _filterAssignments(assignmentExpr: Vertex): boolean {
     const {incoming} = assignmentExpr;
     if (!incoming || incoming.length !== 1) {
@@ -146,6 +148,15 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     }
 
     solveConstraints(): Hypergraph<VData> {
+        const SOLVED_LABEL = "__SOLVED__";
+
+        const ptaMatcher = new HMatcher(this.peg);
+
+        // resolve dynamic this-pointers
+        // ptaMatcher.
+
+        // Resolve value assignments
+
         return this.peg;
     }
 
@@ -182,10 +193,9 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         const readConstraint = this._resolveConstraint(right, scopeVertex);
         const writeConstraint = this._resolveConstraint(left, scopeVertex);
 
-        assert (!writeConstraint.type)
+        assert(!writeConstraint.type);
 
         // Connect read and write
-        // TODO: add return value assignment
         this._link(readConstraint.type || "ASSIGNMENT", readConstraint.bottom, writeConstraint.bottom);
 
         // Connect objects to scope
@@ -278,6 +288,12 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
                 return {bottom, top, type: "INVOCATION"};
             }
+            case Syntax.ARROW_FUNCTION: {
+                // TODO: bind this inside arrow
+                // TODO: parse it and give it a name?
+                const vertex = this._getVertexByLabel("undefined", scope);
+                return {top: null, bottom: vertex};
+            }
             default:
                 throw Error(`Don't know what to do wih ${label} vertex`);
         }
@@ -296,7 +312,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             // Some objects won't have a scope, like null or classes
             if (!scope || scopeEdges.length === 0) return vertex;
 
-            assert (scopeEdges.length === 1);
+            assert(scopeEdges.length === 1);
 
             const existingScope = scopeEdges[0].target;
             if (scope === existingScope) {

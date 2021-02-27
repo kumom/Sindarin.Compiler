@@ -21,6 +21,20 @@ class Server extends EventEmitter {
     listen(port: number, callback: () => void) {
         var h = this._createHandle();
         var z = null;  // Make things fun for PTA
+
+        // TODO: uncomment and analyze
+        // function interesting1(a: number) {
+        //     var z = this._createHandle();
+        //     return 2;
+        // }
+        //
+        // var interesting2 = () => {
+        //     z = interesting1(3);
+        //     return 3;
+        // };
+        //
+        // var x = interesting2();
+
         try {
             h.bind(port); h.listen(5);
 
