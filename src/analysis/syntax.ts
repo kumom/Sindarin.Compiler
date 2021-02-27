@@ -20,6 +20,7 @@ export const OBJECT_LITERAL_EXPRESSION = "ObjectLiteralExpression";
 export const TYPE_ASSERTION_EXPRESSION = "TypeAssertionExpression";
 export const PROPERTY_ACCESS_EXPRESSION = "PropertyAccessExpression";
 export const NEW_EXPRESSION = "NewExpression";
+export const PARANTHESIZED_EXPRESSION = "ParenthesizedExpression";
 
 export const ALL = new Set([
     SYNTAX_LIST,
@@ -45,6 +46,7 @@ export const ALL = new Set([
     PARAMETER,
     CONSTRUCTOR,
     ARROW_FUNCTION,
+    PARANTHESIZED_EXPRESSION,
 ]);
 
 export const SCOPES = [

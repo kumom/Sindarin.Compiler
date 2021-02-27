@@ -104,6 +104,17 @@ class HMatcher<VData = any> {
     }
 
     /**
+     * Matches vertices by label, and yields outgoing edges
+     * @param label
+     */
+    vl(label: LabelPat) {
+        const p = HMatcher.toObjectWithLabel(label);
+        return this._matched(() => lazyFlatMap(lazyFilter<Vertex>(this.g.vertices.values(), p), function* (v) {
+            yield* v.outgoing;
+        }));
+    }
+
+    /**
      * Matches by target
      * @param target path end point
      * @param label label(s) of final edge
@@ -178,17 +189,20 @@ class HMatcher<VData = any> {
 
         const [firstDefinition, ...restOfDefinitions] = definitions;
 
-        const {labelPred, vertex, index, resolve, through, modifier, excluding} = firstDefinition;
+        const {labelPred, vertex, vertexLabelPat, index, resolve, through, modifier, excluding} = firstDefinition;
         if (index || through || modifier || excluding) {
             throw new Error("First definition can only define `labelPred`, `vertex` or `resolve`")
         }
 
-        const startingSet = vertex ? this.v(vertex) : this.l(labelPred);
-        const vertexLabelPat = vertex ? vertex.label : null;
-        const visited = new Set();
+        if ([labelPred, vertexLabelPat, vertex].filter(_ => _).length !== 1) {
+            throw new Error("First definition can only define one of `labelPred`, `vertex` or `vertexLabelPat`")
+        }
+
+        const startingSet = vertex ? this.v(vertex) : vertexLabelPat ? this.vl(vertexLabelPat) : this.l(labelPred);
+        const visited = new Set<string>();
 
         startingSet.resolvePatternDefinitions(handler, restOfDefinitions, {
-            vertexLabelPat,
+            vertexLabelPat: vertexLabelPat || vertex?.label,
             visited,
             firstOnly,
             topLevel: true,

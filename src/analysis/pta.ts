@@ -23,11 +23,13 @@ const LINK_TYPES = {
     INSTANTIATION: "INSTANTIATION",
     PARENT_SCOPE: "PARENT_SCOPE",
     FIELD: "FIELD",
+    SOLVED: "__SOLVED__",
+    RETURN_VALUE: "RETURN_VALUE",
 };
 
 
-// TODO: Support parameters and return value linking
-const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0, 2));
+// TODO: Side effects invocation
+const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0, 3));
 
 const ASSIGNMENT_FILTER = ([assignmentExpr, scope, _]) => _filterAssignments(assignmentExpr);
 
@@ -130,16 +132,14 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
     addConstraint(expr: AnalysisExpression<VData>) {
         const {assignmentExpr, scope} = expr;
-        const {label, sources} = assignmentExpr;
+        const {label} = assignmentExpr;
 
         switch (label) {
             case Syntax.BINARY_EXPRESSION:
             case Syntax.VARIABLE_DECLARATION: {
-                if (!sources || sources.length !== 3) {
-                    throw new Error("Must have three sources");
-                }
+                const [left, op, right] = _parseBinaryExpression(assignmentExpr, false);
 
-                const [left, _, right] = sources.map(stripGibberish);
+                assert(op === "=");
 
                 if (_isArrayLiteralVertex(left)) {
                     this._addMultiAssignConstraint(expr, left, right);
@@ -152,6 +152,14 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 this._resolveWriteConstraint(scope, left, right);
                 return;
             }
+            case Syntax.RETURN_STATEMENT: {
+                const scopeVertex = this._resolveScope(scope);
+                const returnValueVertex = _parseReturnStatement(assignmentExpr);
+                const returnConstraint = this._resolveConstraint(returnValueVertex, scope);
+
+                this._link(LINK_TYPES.RETURN_VALUE, returnConstraint.bottom, scopeVertex);
+                return;
+            }
             default: {
                 throw new Error(`Unsupported type ${label}`);
             }
@@ -159,14 +167,26 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     }
 
     solveConstraints(): Hypergraph<VData> {
-        const SOLVED_LABEL = "__SOLVED__";
-
         const ptaMatcher = new HMatcher(this.peg);
 
-        // resolve dynamic this-pointers
-        // ptaMatcher.
+        // resolve dynamic this-pointers (if we can)
+        ptaMatcher.resolvePatternDefinitions({
+            firstOnly: true,
+            definitions: [
+                {vertexLabelPat: "this"},
+                {
+                    labelPred: LINK_TYPES.CLASS,
+                    through: "outgoing",
+                    modifier: "rtc",
+                    resolve: "targets",
+                },
+            ]
+        }, ([thisVertex, classVertex]) => {
+            this._link(LINK_TYPES.SOLVED, thisVertex, classVertex);
+        });
 
-        // Resolve value assignments
+        // Resolve special link types
+        // TODO
 
         return this.peg;
     }
@@ -177,6 +197,9 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
         assert(leftExpressions.length === rightExpressions.length);
 
+        const fakeEquals = new Vertex<VData>(null);
+        fakeEquals.label = "=";
+
         // Create fake simpler assignments
         for (let i = 0; i < leftExpressions.length; ++i) {
             // TODO: with less boilerplate :-/
@@ -184,13 +207,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             fakeAssignment.incoming = [
                 new Edge(BINARY_EXPRESSION, [
                     leftExpressions[i],
-                    {
-                        id: null,
-                        label: "=",
-                        data: null,
-                        outgoing: null,
-                        incoming: null,
-                    },
+                    fakeEquals,
                     rightExpressions[i],
                 ]),
             ];
@@ -199,7 +216,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         }
     }
 
-    private _resolveWriteConstraint(scope, left, right: Vertex<VData>) {
+    private _resolveWriteConstraint(scope, left, right: Vertex<VData>): Vertex {
         const scopeVertex = this._resolveScope(scope);
         const readConstraint = this._resolveConstraint(right, scopeVertex);
         const writeConstraint = this._resolveConstraint(left, scopeVertex);
@@ -227,6 +244,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 this._link(LINK_TYPES.SCOPE, v, scopeVertex);
             }
         });
+
+        return readConstraint.bottom;
     }
 
     private _resolveScope(vertex: Vertex<VData>): Vertex {
@@ -309,6 +328,19 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 const vertex = this._getVertexByLabel("undefined", scope);
                 return {top: null, bottom: vertex};
             }
+            case Syntax.PARANTHESIZED_EXPRESSION: {
+                const vertex = _parseParanthesizedExpression(edge);
+                return this._resolveConstraint(vertex, scope);
+            }
+            case Syntax.BINARY_EXPRESSION: {
+                const [left, op, right] = _parseBinaryExpression(edge);
+
+                // TODO: support multiple reads
+                assert(op === "=");
+
+                const vertex = this._resolveWriteConstraint(scope, left, right);
+                return {top: null, bottom: vertex};
+            }
             default:
                 throw Error(`Don't know what to do wih ${label} vertex`);
         }
@@ -317,25 +349,22 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     private _getVertexByLabel(label: string, scope?: Vertex): Vertex {
         const vertices = Array.from(lazyFilter(this.peg.vertices.values(), v => v.label === label));
 
-        assert(vertices.length <= 1);
-
         // Known name - verify that the scope is the same
-        if (vertices.length !== 0) {
-            const vertex = vertices[0];
-            const scopeEdges = vertex.outgoing.filter(_ => _.label === LINK_TYPES.SCOPE)
+        const relevantVertices = vertices.filter(vertex => {
+            const scopeEdges = vertex.outgoing.filter(_ => _.label === LINK_TYPES.SCOPE);
 
             // Some objects won't have a scope, like null or classes
-            if (!scope || scopeEdges.length === 0) return vertex;
+            if (!scope || scopeEdges.length === 0) return true;
 
             assert(scopeEdges.length === 1);
 
             const existingScope = scopeEdges[0].target;
-            if (scope === existingScope) {
-                return vertex;
-            }
-        }
+            return scope == existingScope;
+        });
 
-        return this.peg._fresh(label);
+        assert (relevantVertices.length <= 1)
+
+        return relevantVertices[0] || this.peg._fresh(label);
     }
 
     private _createNewMemoryLocation(type: string, scope?: Vertex): ResolvedConstraint {
@@ -444,6 +473,51 @@ function _parseNewExpression(edge: Edge): { type: Vertex, } {
     return {
         type,
     };
+}
+
+function _parseReturnStatement(edge: Edge): Vertex {
+    assert(edge.label === Syntax.RETURN_STATEMENT);
+    assert(edge.sources.length >= 2);
+
+    const [returnKeyword, ...rest] = edge.sources;
+
+    assert(returnKeyword.label === "return");
+
+    // Get rid of semicolon
+    if (rest[rest.length - 1].label === ";") {
+        rest.pop();
+    }
+
+    assert(rest.length === 1);
+    return rest[0];
+}
+
+function _parseParanthesizedExpression(edge: Edge): Vertex {
+    assert(edge.label === Syntax.PARANTHESIZED_EXPRESSION);
+    assert(edge.sources.length === 3);
+
+    const [lparan, subexpression, rparan] = edge.sources;
+
+    assert(lparan.label === "(");
+    assert(rparan.label === ")");
+
+    return subexpression;
+}
+
+function _parseBinaryExpression(edge: Edge, assertType = true): [Vertex, string, Vertex] {
+    if (assertType) {
+        assert(edge.label === Syntax.BINARY_EXPRESSION);
+    }
+
+    assert(edge.sources.length === 3);
+
+    const [left, op, right] = edge.sources;
+
+    return [
+        stripGibberish(left),
+        op.label,
+        stripGibberish(right),
+    ];
 }
 
 function stripGibberish(vertex: Vertex): Vertex {
