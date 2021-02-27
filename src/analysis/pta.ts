@@ -13,7 +13,18 @@ const ASSIGNMENT_EXPRESSIONS = [
     Syntax.BINARY_EXPRESSION,
     Syntax.RETURN_STATEMENT,
     Syntax.CALL_EXPRESSION,
-]
+];
+
+const LINK_TYPES = {
+    ASSIGNMENT: "ASSIGNMENT",
+    SCOPE: "SCOPE",
+    CLASS: "CLASS",
+    INVOCATION: "INVOCATION",
+    INSTANTIATION: "INSTANTIATION",
+    PARENT_SCOPE: "PARENT_SCOPE",
+    FIELD: "FIELD",
+};
+
 
 // TODO: Support parameters and return value linking
 const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0, 2));
@@ -103,7 +114,7 @@ interface PointsToAnalysis<VData> {
 interface ResolvedConstraint {
     top: Vertex;
     bottom: Vertex;
-    type?: null | "INVOCATION" | "INSTANTIATION";
+    type?: string;
 }
 
 class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
@@ -196,7 +207,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         assert(!writeConstraint.type);
 
         // Connect read and write
-        this._link(readConstraint.type || "ASSIGNMENT", readConstraint.bottom, writeConstraint.bottom);
+        const linkType = readConstraint.type || LINK_TYPES.ASSIGNMENT;
+        this._link(linkType, readConstraint.bottom, writeConstraint.bottom);
 
         // Connect objects to scope
         [readConstraint, writeConstraint].forEach(({top, bottom, type}) => {
@@ -206,13 +218,13 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             if (!v) return;
 
             // Already connected to scope
-            if (v.outgoing.some(_ => _.label === "SCOPE")) {
+            if (v.outgoing.some(_ => _.label === LINK_TYPES.SCOPE)) {
                 return;
             }
 
             // Allow same name under different scopes
             if (!isGlobalName(v.label) && scopeVertex) {
-                this._link("SCOPE", v, scopeVertex);
+                this._link(LINK_TYPES.SCOPE, v, scopeVertex);
             }
         });
     }
@@ -233,7 +245,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             const parentScopeVertex = this._resolveScope(parentScope);
 
             const [__, label] = getOutgoingEdgeAndLabel(parentScope);
-            this._link(label === Syntax.CLASS_DECLARATION ? "CLASS" : "PARENT_SCOPE", scopeVertex, parentScopeVertex);
+            const linkType = label === Syntax.CLASS_DECLARATION ? LINK_TYPES.CLASS : LINK_TYPES.PARENT_SCOPE;
+            this._link(linkType, scopeVertex, parentScopeVertex);
         }
 
         return scopeVertex;
@@ -276,7 +289,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 assert(!propTop);
 
                 // TODO: add field link
-                this._link("FIELD", propBottom, baseBottom);
+                this._link(LINK_TYPES.FIELD, propBottom, baseBottom);
 
                 return {top: baseTop || baseBottom, bottom: propBottom};
             }
@@ -288,7 +301,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
                 assert(!type);
 
-                return {bottom, top, type: "INVOCATION"};
+                return {bottom, top, type: LINK_TYPES.INVOCATION};
             }
             case Syntax.ARROW_FUNCTION: {
                 // TODO: bind `this` inside arrow
@@ -309,7 +322,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // Known name - verify that the scope is the same
         if (vertices.length !== 0) {
             const vertex = vertices[0];
-            const scopeEdges = vertex.outgoing.filter(_ => _.label === "SCOPE")
+            const scopeEdges = vertex.outgoing.filter(_ => _.label === LINK_TYPES.SCOPE)
 
             // Some objects won't have a scope, like null or classes
             if (!scope || scopeEdges.length === 0) return vertex;
