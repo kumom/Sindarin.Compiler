@@ -190,12 +190,10 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
         // Connect objects to scope
         [readConstraint, writeConstraint].forEach(({top, bottom, type}) => {
-            // Don't connect to scope if this is not an assignment constraint
-            if (type) {
-                return;
-            }
+            // Don't connect bottom to scope if this is not an assignment constraint
+            const v = type ? top : top || bottom;
 
-            const v = top || bottom;
+            if (!v) return;
 
             // Already connected to scope
             const relevantOutgoing = v.outgoing; // WHAT?: .filter(_ => _.label === "FIELD");
@@ -258,8 +256,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             }
             case Syntax.PROPERTY_ACCESS_EXPRESSION: {
                 const {base, prop} = _parsePropertyAccessExpression(edge);
-                const {bottom: baseBottom, top: baseTop, type: baseType} = this._resolveConstraint(base);
-                const {bottom: propBottom, top: propTop, type: propType} = this._resolveConstraint(prop);
+                const {bottom: baseBottom, top: baseTop, type: baseType} = this._resolveConstraint(base, scope);
+                const {bottom: propBottom, top: propTop, type: propType} = this._resolveConstraint(prop, scope);
 
                 assert(!baseType);
                 assert(!propType);
@@ -268,15 +266,15 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 // TODO: add field link
                 this._link("FIELD", propBottom, baseBottom);
 
-                return {top: baseTop, bottom: propBottom};
+                return {top: baseTop || baseBottom, bottom: propBottom};
             }
             case Syntax.CALL_EXPRESSION: {
                 const {caller, args} = _parseCallExpression(edge);
-                const {bottom, top, type} = this._resolveConstraint(caller);
+                const {bottom, top, type} = this._resolveConstraint(caller, scope);
 
                 // TODO: deal with args
 
-                assert(!type)
+                assert(!type);
 
                 return {bottom, top, type: "INVOCATION"};
             }
@@ -290,8 +288,23 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
 
         assert(vertices.length <= 1);
 
-        const result = vertices[0] || this.peg._fresh(label);
-        return result;
+        // Known name - verify that the scope is the same
+        if (vertices.length !== 0) {
+            const vertex = vertices[0];
+            const scopeEdges = vertex.outgoing.filter(_ => _.label === "SCOPE")
+
+            // Some objects won't have a scope, like null or classes
+            if (!scope || scopeEdges.length === 0) return vertex;
+
+            assert (scopeEdges.length === 1);
+
+            const existingScope = scopeEdges[0].target;
+            if (scope === existingScope) {
+                return vertex;
+            }
+        }
+
+        return this.peg._fresh(label);
     }
 
     private _createNewMemoryLocation(type: string, scope?: Vertex): ResolvedConstraint {
