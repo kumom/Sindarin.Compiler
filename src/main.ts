@@ -2,6 +2,8 @@ import {C99Parser} from './syntax/c99';
 import {TypeScriptParser} from './syntax/typescript-ast';
 import {IDE} from './ide/ide';
 
+import * as vis from 'vis-metapkg';
+
 import {Hypergraph} from './analysis/hypergraph';
 import {HMatcher} from './analysis/pattern';
 import * as SetOps from './infra/setops';
@@ -132,21 +134,28 @@ function semanticAnalysis_TS(sourcePeg: Hypergraph) {
 }
 
 
+const TOOLCHAINS = {
+    'c': {parser: C99Parser, seman: semanticAnalysis_C},
+    'ts': {parser: TypeScriptParser, seman: semanticAnalysis_TS}};
+
+
+var program = {language: 'c', filename: '/data/c/bincnt.c', entry: 'counter'};
+//var program = {language: 'ts', filename: '/data/typescript/lib/net.ts', entry: 'listen'};
+
+
 function main() {
-    const parser = new TypeScriptParser();  /** @todo select parser by program */
-    //  new C99Parser();
+    const tool = TOOLCHAINS[program.language],
+          parser = new tool.parser();
 
     requestAnimationFrame(async () => {
         var ide = new IDE();
 
-        await ide.open('/data/typescript/lib/net.ts');
-        setTimeout(() => nav.gotoMethod('listen'), 0); /** @oops can only run after PegPanel 'show' event */
-        //setTimeout(() =>
-        //    nav.ast.focus(nav.findImports()[0]));
+        await ide.open(program.filename);
+        if (program.entry)
+            setTimeout(() => nav.gotoMethod(program.entry), 0); /** @oops can only run after PegPanel 'show' event */
 
-        //await ide.open('/data/c/bincnt.c');
         ide.parse(parser);
-        var semanticAnalysis = semanticAnalysis_TS;
+        var semanticAnalysis = tool.seman;
 
         //ide.panels.ast.hide();
 
@@ -196,12 +205,15 @@ function main() {
         Object.assign(window, {ide, nav});
     })
 
-    Object.assign(window, {parser, Hypergraph});
+    Object.assign(window, {parser, Hypergraph, vis});
 }
 
 
 const ID = HMatcher.Ast.byNodeType('Identifier');
 
+/**
+ * Oops this is currently specific to TypeScript ASTs :/
+ */
 class SourceNavigator {
     ast: AstPanel
     peg: Hypergraph
