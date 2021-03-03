@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import Component from 'vue-class-component';
+import * as vis from 'vis-metapkg';
 
 import { Hypergraph, HypergraphView } from '../../analysis/hypergraph';
 // @ts-ignore
@@ -17,7 +18,7 @@ class PegPanel extends Vue {
 
     sizeThreshold = 600
 
-    render(createElement) {
+    render(createElement: (tagName: string) => Element) {
         return createElement('div');
     }
 
@@ -33,6 +34,11 @@ class PegPanel extends Vue {
         this.toolbar = new (Vue.component('peg-toolbar', Toolbar))();
         this.$el.append(this.toolbar.$mount().$el);
         this.$emit('show', {peg});
+    }
+
+    showDot(dot: string) {
+        var data = vis.parseDOTNetwork(dot);
+        this.view = new HypergraphView(null, data).render(this.$el);
     }
 
     overlay(peg: Hypergraph) {

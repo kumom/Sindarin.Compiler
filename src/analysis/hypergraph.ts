@@ -245,6 +245,8 @@ class HypergraphView {
     constructor(peg: Hypergraph, data: HypergraphView.Data) {
         this.peg = peg;
         this.data = data;
+        if (this.data.options)
+            this.options = this.data.options;
     }
 
     render(on: HTMLElement) {
@@ -405,6 +407,7 @@ namespace HypergraphView {
     export type Data = {
         nodes: vis.DataSet<vis.Node, 'id'>
         edges: vis.DataSet<vis.Edge, 'id'>
+        options?: vis.Options  /* not strictly part of the data, but returned from e.g. vis.parseDOTNetwork */
     };
 
 }
