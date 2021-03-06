@@ -1,6 +1,6 @@
 import {Hypergraph} from './hypergraph';
-import {Ast} from '../ide/panels/ast-panel';
 import {lazyFilter, lazyFlatMap} from "./utils";
+import {loadPattern, serializePattern} from "./patternSerializer";
 
 function getRouteKey<VData>(route: Route<VData>) {
     return route.map(v => v.id).join("|");
@@ -123,7 +123,11 @@ export class HMatcher<VData = any> {
      * @param definitions how to traverse the graph
      */
     resolvePatternDefinitions(pattern: RoutePatternDefinition, handler: (route: Route<VData>) => void) {
-        const {definitions, firstOnly, reflexive = true} = pattern;
+        // TODO: remove
+        pattern = loadPattern(serializePattern(pattern))
+
+        const {definitions, firstOnly, unreflexive} = pattern;
+        console.log(serializePattern(pattern));
 
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
@@ -149,7 +153,7 @@ export class HMatcher<VData = any> {
             firstOnly,
             topLevel: true,
             resolve,
-            reflexive,
+            unreflexive,
         });
     }
 
@@ -269,7 +273,7 @@ export class Matched<VData = any> {
     resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
         const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
         const {labelPred, vertex, index, through, modifier, excluding} = nextDefinition || {};
-        const {vertexLabelPat, visited, firstOnly, topLevel, resolve, reflexive} = payload;
+        const {vertexLabelPat, visited, firstOnly, topLevel, resolve, unreflexive} = payload;
 
         const methodBase = THROUGH_TO_METHOD[through];
         const method = modifier ? `${methodBase}_${modifier}` : methodBase;
@@ -309,7 +313,7 @@ export class Matched<VData = any> {
             }
 
             // Prevent direct links for the same vertex
-            if (!reflexive && route && route[route.length - 1] === u) {
+            if (unreflexive && route && route[route.length - 1] === u) {
                 return;
             }
 

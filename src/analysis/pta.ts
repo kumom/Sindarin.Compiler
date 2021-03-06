@@ -195,7 +195,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             let changed = false;
 
             ptaMatcher.resolvePatternDefinitions({
-                reflexive: false,
+                unreflexive: true,
                 definitions: [
                     {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT]},
                     {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT], through: "outgoing"},

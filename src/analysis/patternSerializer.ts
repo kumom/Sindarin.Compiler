@@ -1,63 +1,133 @@
-import {lazyFlatMap} from "./pattern";
 import assert from "assert";
+import {isScopeName} from "./semantics";
 
 const FLAG_MAP = {
     fo: 'firstOnly',
-    refx: 'reflexive',
+    unrefx: 'unreflexive',
 };
 
+const ARROW_MAP = {
+    "->": 'outgoing',
+    "<-": 'incoming',
+};
+
+// Kinda had no other choice for serialization to work
+const KNOWN_FUNCTIONS = {
+    "isScopeName": isScopeName,
+};
 
 export function loadPattern(patternString: string): RoutePatternDefinition {
-    return null;
+    const routeSplit = patternString.split("||");
+    assert(routeSplit.length === 2);
+
+    const flagValues = routeSplit[0].split('-').reduce((pv, cv) => {
+        return {
+            ...pv,
+            [FLAG_MAP[cv]]: true,
+        }
+    }, Object.values(FLAG_MAP).reduce((pv, cv) => {
+        return {
+            ...pv,
+            [cv]: false,  // Assume missing flag => false
+        }
+    }, {}));
+
+    const definitions = routeSplit[1].split('#').map(loadDefinition);
+
+    return {
+        ...flagValues,
+        definitions,
+    };
+}
+
+function loadDefinition(definitionString: string): PatternDefinition {
+    const defSplit = definitionString.split(' ');
+    assert(defSplit.length === 4);
+
+    const [labelPred, vertexPred, arrowPart, modifiers] = defSplit;
+    const arrow = arrowPart.substr(0, 2);
+
+    const vertexPredSplit = vertexPred.split(":");
+
+    const vertexPredPattern: PatternDefinition = vertexPredSplit.length === 2 ? {
+        // TODO: merge both of these
+        vertex: vertexPredSplit[0] === "*" ? undefined : {id: parseInt(vertexPredSplit[0]), label: vertexPredSplit[1]},
+        vertexLabelPat: vertexPredSplit[0] === "*" ? vertexPredSplit[1] : undefined,
+    } : {};
+
+    return{
+        labelPred: labelPred === "undefined" ? undefined : KNOWN_FUNCTIONS[labelPred] || JSON.parse(labelPred),
+        ...vertexPredPattern,
+
+        through: ARROW_MAP[arrow],
+        modifier: arrowPart[2] === "*" ? "rtc" : undefined,
+
+        ...JSON.parse(modifiers),
+    };
 }
 
 export function serializePattern(pattern: RoutePatternDefinition): string {
-    const {firstOnly, reflexive, definitions} = pattern;
+    const {firstOnly, unreflexive, definitions} = pattern;
 
-    const serializedDefinitions = lazyFlatMap(definitions, _serializeDefinition);
+    const serializedDefinitions = definitions.map(serializeDefinition);
 
-    const flags = [_resolveFlag('firstOnly', firstOnly), _resolveFlag('reflexive', reflexive)].filter(_ => _).join('-');
-    return `${flags}|${Array.from(serializedDefinitions).join('|')}`;
+    const flags = [_resolveFlag('firstOnly', firstOnly), _resolveFlag('unreflexive', unreflexive)].filter(_ => _).join('-');
+    return `${flags}||${serializedDefinitions.join('#')}`;
+}
+
+function serializeDefinition(def: PatternDefinition): string {
+    return Array.from(_serializeDefinition(def)).join(' ');
 }
 
 function* _serializeDefinition(def: PatternDefinition) {
-        const {
-            labelPred,
-            vertex,
-            index,
-            through,
-            resolve,
-            modifier,
-            excluding,
-            vertexLabelPat,
-        } = def;
+    const {
+        labelPred,
+        vertex,
+        vertexLabelPat,
+        index,
+        through,
+        resolve,
+        modifier,
+        excluding,
+    } = def;
 
-        yield `<`;
+    if (typeof(labelPred) === "function") {
+        assert (KNOWN_FUNCTIONS[labelPred.name]);
+        yield labelPred.name;
+    } else {
+        yield `${JSON.stringify(labelPred)}`;
+    }
 
-        if (vertex) {
-            yield `${vertex.id}:${vertex.label}`;
-        } else if (labelPred) {
-            yield `${JSON.stringify(labelPred)}`;
-        } else {
-            assert (false);
-        }
+    if (vertex) {
+        yield `${vertex.id}:${vertex.label}`;
+    } else if (vertexLabelPat) {
+        yield `*:${vertexLabelPat}`;
+    } else {
+        yield "*";
+    }
 
-        const arrow = through === "outgoing" ? "->" : "<-";
-        const arrowModifier = modifier === "rtc" ? "*" : "";
-        yield `${arrow}${arrowModifier}`;
+    const arrow = _resolveArrow(through);
+    const arrowModifier = modifier === "rtc" ? "*" : "";
+    yield `${arrow}${arrowModifier}`;
 
-        const specialModifiers = Object.fromEntries(Object.entries({
-            resolve,
-            excluding,
-            vertexLabelPat,
-            index,
-        }).filter(([k ,v]) => v));
+    const specialModifiers = Object.fromEntries(Object.entries({
+        resolve,
+        excluding,
+        index,
+        vertexLabelPat,
+    }).filter(([k, v]) => v !== undefined));
 
-        yield JSON.stringify(specialModifiers);
+    yield JSON.stringify(specialModifiers);
+}
 
-        yield `>`;
+function _resolveArrow(through: string): string {
+    return _resolveFromMap(ARROW_MAP, through, true) || "";
 }
 
 function _resolveFlag(name: string, value?: boolean): string {
-    return value && Object.entries(FLAG_MAP).filter(([k, v]) => v === name).map(([k, v]) => v)[0];
+    return _resolveFromMap(FLAG_MAP, name, value || false);
+}
+
+function _resolveFromMap(map: any, name: string, value?: boolean): string {
+    return value && Object.entries(map).filter(([k, v]) => v === name).map(([k, v]) => k)[0];
 }

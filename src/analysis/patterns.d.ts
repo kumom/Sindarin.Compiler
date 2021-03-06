@@ -22,13 +22,13 @@ interface PatternDefinitionPayload {
     firstOnly?: boolean;
     topLevel?: boolean;  // Is Top Level of search
     resolve?: "sources" | "targets";
-    reflexive?: boolean;
+    unreflexive?: boolean;
 }
 
 interface RoutePatternDefinition {
     definitions?: PatternDefinition[];
     firstOnly?: boolean;  // Get only first route (per stating-set element)
-    reflexive?: boolean;  // Defaults to true
+    unreflexive?: boolean;
 }
 
 interface PatternDefinition {
