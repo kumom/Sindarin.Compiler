@@ -6,10 +6,10 @@ import {resolveLexicalScope} from './semantics';
 
 class Hypergraph<VData = any> {
 
-    vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>> = new Map;
+    vertices: Map<VertexId, Hypergraph.Vertex<VData>> = new Map;
     edges: Hypergraph.Edge[] = [];
 
-    _max: Hypergraph.VertexId = 0
+    _max: VertexId = 0
 
     constructor() {
     }
@@ -23,8 +23,8 @@ class Hypergraph<VData = any> {
     }
 
     add(edges: Hypergraph.EdgeData[]) {
-        var vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>>(),
-            get = (u: Hypergraph.VertexId | Hypergraph.Vertex<VData>) => {
+        var vmap = new Map<VertexId, Hypergraph.Vertex<VData>>(),
+            get = (u: VertexId | Hypergraph.Vertex<VData>) => {
                 if (typeof u === 'number') {
                     if (u > 0) return this._get(u);
                     else {
@@ -81,7 +81,7 @@ class Hypergraph<VData = any> {
     }
 
     fromAst(ast: Ast) {
-        var self = this, c: Hypergraph.VertexId = this._max;
+        var self = this, c: VertexId = this._max;
         function aux(ast: Ast) {
             var root = ++c, u = self._get(root);
             if (Array.isArray(ast)) {
@@ -99,7 +99,7 @@ class Hypergraph<VData = any> {
         return this;
     }
 
-    _get(id: Hypergraph.VertexId) {
+    _get(id: VertexId) {
         var v = this.vertices.get(id);
         if (!v) {
             v = new Hypergraph.Vertex(id);
@@ -142,8 +142,6 @@ class Hypergraph<VData = any> {
 }
 
 namespace Hypergraph {
-
-    export type VertexId = number
 
     export class Vertex<Data = any> {
         id: VertexId

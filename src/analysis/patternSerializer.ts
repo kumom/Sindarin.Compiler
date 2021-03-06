@@ -1,5 +1,5 @@
-import {HMatcher, LabelPat, PatternDefinition, lazyFlatMap} from "./pattern";
-import RoutePatternDefinition = HMatcher.RoutePatternDefinition;
+import {lazyFlatMap} from "./pattern";
+import assert from "assert";
 
 const FLAG_MAP = {
     fo: 'firstOnly',
@@ -34,6 +34,13 @@ function* _serializeDefinition(def: PatternDefinition) {
 
         yield `<`;
 
+        if (vertex) {
+            yield `${vertex.id}:${vertex.label}`;
+        } else if (labelPred) {
+            yield `${JSON.stringify(labelPred)}`;
+        } else {
+            assert (false);
+        }
 
         const arrow = through === "outgoing" ? "->" : "<-";
         const arrowModifier = modifier === "rtc" ? "*" : "";
@@ -43,6 +50,7 @@ function* _serializeDefinition(def: PatternDefinition) {
             resolve,
             excluding,
             vertexLabelPat,
+            index,
         }).filter(([k ,v]) => v));
 
         yield JSON.stringify(specialModifiers);

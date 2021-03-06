@@ -1,11 +1,10 @@
 import {Hypergraph} from "./hypergraph";
-import {HMatcher, toSubtreeString, lazyFilter} from "./pattern";
+import {HMatcher} from "./pattern";
 import * as Syntax from "./syntax";
-import Vertex = Hypergraph.Vertex;
 import {getClosestScopeNameRouteDefinition} from "./semantics";
-import Edge = Hypergraph.Edge;
 import assert from "assert";
 import {BINARY_EXPRESSION} from "./syntax";
+import {lazyFilter, toSubtreeString} from "./utils";
 
 
 const ASSIGNMENT_EXPRESSIONS = [
@@ -213,20 +212,20 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
     }
 
     private _addMultiAssignConstraint(expr: AnalysisExpression<VData>, left: Vertex<VData>, right: Vertex<VData>) {
-        const leftExpressions = _parseArrayLiteralVertex(left);
-        const rightExpressions = _parseArrayLiteralVertex(right);
+        const leftExpressions = _parseArrayLiteralVertex(left) as Hypergraph.Vertex[];
+        const rightExpressions = _parseArrayLiteralVertex(right) as Hypergraph.Vertex[];
 
         assert(leftExpressions.length === rightExpressions.length);
 
-        const fakeEquals = new Vertex<VData>(null);
+        const fakeEquals = new Hypergraph.Vertex<VData>(null);
         fakeEquals.label = "=";
 
         // Create fake simpler assignments
         for (let i = 0; i < leftExpressions.length; ++i) {
             // TODO: with less boilerplate :-/
-            const fakeAssignment = new Vertex<VData>(null);
+            const fakeAssignment = new Hypergraph.Vertex<VData>(null);
             fakeAssignment.incoming = [
-                new Edge(BINARY_EXPRESSION, [
+                new Hypergraph.Edge(BINARY_EXPRESSION, [
                     leftExpressions[i],
                     fakeEquals,
                     rightExpressions[i],
@@ -408,7 +407,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             return;
         }
 
-        this.peg.add([new Edge(type, [source], target)]);
+        this.peg.add([new Hypergraph.Edge(type, [source], target as Hypergraph.Vertex)]);
     }
 }
 

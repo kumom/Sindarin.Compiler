@@ -1,9 +1,7 @@
 import {Hypergraph} from "./hypergraph";
 import {HMatcher} from "./pattern";
-import RoutePatternDefinition = HMatcher.RoutePatternDefinition;
 import * as Syntax from "./syntax";
 import Vertex = Hypergraph.Vertex;
-import PatternDefinition = HMatcher.PatternDefinition;
 
 // Not really, but close enough :shrug
 const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;

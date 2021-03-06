@@ -3,16 +3,16 @@ import {TypeScriptParser} from './syntax/typescript-ast';
 import {IDE} from './ide/ide';
 
 import {Hypergraph} from './analysis/hypergraph';
-import {HMatcher} from './analysis/pattern';
-import * as SetOps from './infra/setops';
+import {HMatcher, Memento} from './analysis/pattern';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
-import PatternDefinition = HMatcher.PatternDefinition;
 import {AstPanel} from './ide/panels/ast-panel';
 import {EXPRESSIONS, SCOPES} from "./analysis/syntax";
 import {resolveLexicalScope} from "./analysis/semantics";
 import {performPointsToAnalysis} from "./analysis/pta";
+import {byLabel, HAst} from "./analysis/astUtils";
+import byNodeType = HAst.byNodeType;
 
 
 function semanticAnalysis_C(peg1: Hypergraph) {
@@ -213,7 +213,7 @@ function main() {
 }
 
 
-const ID = HMatcher.Ast.byNodeType('Identifier');
+const ID = byNodeType('Identifier');
 
 class SourceNavigator {
     ast: AstPanel
@@ -235,10 +235,10 @@ class SourceNavigator {
 
     gotoDecl(declType: string, name: string) {
         var m = new HMatcher(this.peg),
-            mm = new HMatcher.Memento,
+            mm = new Memento,
             res = [];
 
-        mm.e('e')(m.l(declType)).s(ID(HMatcher.byLabel(name)(() => {
+        mm.e('e')(m.l(declType)).s(ID(byLabel(name)(() => {
             res.push(mm.edges['e'].target.data.ast);
         })));
 
