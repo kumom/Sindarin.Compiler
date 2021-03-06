@@ -11,7 +11,7 @@ export function isScopeName(name: string) {
 }
 
 
-const DEFINITION_LABEL = 'DEFINITION';
+const DEFINITION_LABEL = '__definition__';
 
 interface ScopeResolutionOptions {
     routeOverrides?: RoutePatternDefinition;

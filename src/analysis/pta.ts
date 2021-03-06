@@ -15,15 +15,15 @@ const ASSIGNMENT_EXPRESSIONS = [
 ];
 
 const LINK_TYPES = {
-    ASSIGNMENT: "ASSIGNMENT",
-    SCOPE: "SCOPE",
-    CLASS: "CLASS",
-    INVOCATION: "INVOCATION",
-    INSTANTIATION: "INSTANTIATION",
-    PARENT_SCOPE: "PARENT_SCOPE",
-    FIELD: "FIELD",
-    SOLVED: "__SOLVED__",
-    RETURN_VALUE: "RETURN_VALUE",
+    ASSIGNMENT: "assignment",
+    SCOPE: "scope",
+    CLASS: "class",
+    INVOCATION: "invocation",
+    INSTANTIATION: "instantiation",
+    PARENT_SCOPE: "parent_scope",
+    FIELD: "field",
+    SOLVED: "__solved__",
+    RETURN_VALUE: "return_value",
 };
 
 
@@ -171,7 +171,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             definitions: [
                 {labelPred: LINK_TYPES.INVOCATION, resolve: "targets"},  // Find vertices assigned by invocations
                 {labelPred: LINK_TYPES.INVOCATION, through: "incoming"},  // Find incoming invocations
-                {vertexLabelPat: "this", labelPred: LINK_TYPES.FIELD, through: "outgoing"},  // Find defining instance
+                {vertexLabelPat: "this", labelPred: LINK_TYPES.FIELD, through: "outgoing"},  // Find defining instace
                 {labelPred: LINK_TYPES.SOLVED, through: "outgoing"},  // Find class declaration
                 {labelPred: LINK_TYPES.CLASS, through: "incoming"},  // Find relevant method declaration
                 {labelPred: LINK_TYPES.RETURN_VALUE, through: "incoming"},  // Get return value
@@ -398,7 +398,7 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
         // TODO: include data like line, ctor args etc...
 
         const vertex = this._getVertexByLabel(type, scope);
-        return {top: null, bottom: vertex, type: "INSTANTIATION"};
+        return {top: null, bottom: vertex, type: LINK_TYPES.INSTANTIATION};
     }
 
     private _link(type: string, source, target: Vertex) {
