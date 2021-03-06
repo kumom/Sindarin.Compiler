@@ -33,6 +33,7 @@ export function getClosestScopeRouteDefinition(pattern: PatternDefinition, optio
                 labelPred: Syntax.SCOPES,
                 through: "outgoing",
                 modifier: "rtc",
+                resolve: "sources",
                 excluding: [DEFINITION_LABEL, Syntax.PARAMETER, ...excludedScopes],
             },
             ...patternsUnderScope,

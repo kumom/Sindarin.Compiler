@@ -121,7 +121,9 @@ class HMatcher<VData = any> {
      */
     lt(target: Vertex<VData>, label?: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toObjectWithLabel(label);
-        return this._matched(() => lazyFilter<Edge>(target.incoming, p));
+        const pExclude = HMatcher.toObjectWithLabel(excluding, {negate: true});
+
+        return this._matched(() => lazyFilter<Edge>(lazyFilter<Edge>(target.incoming, p), pExclude));
     }
 
     /**
@@ -129,9 +131,11 @@ class HMatcher<VData = any> {
      * @param source start point
      * @param label
      */
-    sl(source: Vertex<VData>, label: LabelPat) {
+    sl(source: Vertex<VData>, label: LabelPat, , excluding?: LabelPat) {
         const p = HMatcher.toObjectWithLabel(label);
-        return this._matched(() => lazyFilter<Edge>(source.outgoing, p));
+        const pExclude = HMatcher.toObjectWithLabel(excluding, {negate: true});
+
+        return this._matched(() => lazyFilter<Edge>(lazyFilter<Edge>(source.outgoing, p), pExclude));
     }
 
     /**
@@ -194,9 +198,9 @@ class HMatcher<VData = any> {
             throw new Error("First definition can only define `labelPred`, `vertex`, `vertexLabelPat`, and `resolve`")
         }
 
-        if ([labelPred, vertexLabelPat, vertex].filter(_ => _).length !== 1) {
-            throw new Error("First definition can only define one of `labelPred`, `vertex` or `vertexLabelPat`")
-        }
+        // if ([labelPred, vertexLabelPat, vertex].filter(_ => _).length !== 1) {
+        //     throw new Error("First definition can only define one of `labelPred`, `vertex` or `vertexLabelPat`")
+        // }
 
         const startingSet = vertex ? this.v(vertex) : vertexLabelPat ? this.vl(vertexLabelPat) : this.l(labelPred);
         const visited = new Set<string>();
@@ -250,6 +254,11 @@ namespace HMatcher {
     const THROUGH_TO_METHOD = {
         "outgoing": "sl",
         "incoming": "lt",
+    };
+
+    const THROUGH_TO_RESOLVE: {[key: string]: "sources" | "targets"} = {
+        "outgoing": "targets",
+        "incoming": "sources",
     };
 
     export type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
@@ -368,14 +377,10 @@ namespace HMatcher {
                     throw new Error("`resolve` must be 'sources' or 'targets' (or undefined)");
                 }
 
-                if (modifier != "rtc" && excluding) {
-                    throw new Error("Inner match definitions must be `rtc` to define `excluding`");
-                }
-
                 // Index mode
                 if (index !== undefined) {
                     if (through || modifier || excluding || vertexLabelPat) {
-                        throw new Error("Illeagal definition for index resolution")
+                        throw new Error("Illegal definition for index resolution")
 
                     }
                 } else {
@@ -413,12 +418,11 @@ namespace HMatcher {
                         this.matcher.v(u) :
                         this.matcher[method](u, labelPred, excluding);
 
-                    const nextPayload = {
+                    const nextPayload: PatternDefinitionPayload = {
                         ...payload,
                         vertexLabelPat: nextDefinition.vertexLabelPat,
                         topLevel: false,
-                        resolve: nextDefinition.resolve,
-                        index: nextDefinition.index,
+                        resolve: nextDefinition.resolve || THROUGH_TO_RESOLVE[through],
                     };
 
                     found = subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);

@@ -178,7 +178,6 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                     labelPred: LINK_TYPES.CLASS,
                     through: "outgoing",
                     modifier: "rtc",
-                    resolve: "targets",
                 },
             ]
         }, ([thisVertex, classVertex]) => {
@@ -192,8 +191,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             definitions: [
                 {labelPred: LINK_TYPES.INVOCATION, resolve: "targets"},  // Find vertices assigned by invocations
                 {labelPred: LINK_TYPES.INVOCATION, through: "incoming"},  // Find incoming invocations
-                {vertexLabelPat: "this", labelPred: LINK_TYPES.FIELD, through: "outgoing", resolve: "targets"},  // Find defining instance
-                {labelPred: LINK_TYPES.SOLVED, through: "outgoing", resolve: "targets"},  // Find class declaration
+                {vertexLabelPat: "this", labelPred: LINK_TYPES.FIELD, through: "outgoing"},  // Find defining instance
+                {labelPred: LINK_TYPES.SOLVED, through: "outgoing"},  // Find class declaration
                 {labelPred: LINK_TYPES.CLASS, through: "incoming"},  // Find relevant method declaration
                 {labelPred: LINK_TYPES.RETURN_VALUE, through: "incoming"},  // Get return value
             ],
@@ -219,8 +218,8 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
                 reflexive: false,
                 definitions: [
                     {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT]},
-                    {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT], through: "outgoing", resolve: "targets"},
-                    {labelPred: LINK_TYPES.ASSIGNMENT, through: "outgoing", resolve: "targets"},
+                    {labelPred: [LINK_TYPES.SOLVED, LINK_TYPES.ASSIGNMENT], through: "outgoing"},
+                    {labelPred: LINK_TYPES.ASSIGNMENT, through: "outgoing"},
                 ],
             }, ([src, _, target]) => {
                 this._link(LINK_TYPES.SOLVED, src, target);
