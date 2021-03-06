@@ -28,28 +28,9 @@ const LINK_TYPES = {
 };
 
 
-// TODO: Side effects invocation
+// TODO: Side effects from invocations
 const SUPPORTED_ASSIGNMENT_EXPRESSIONS = new Set(ASSIGNMENT_EXPRESSIONS.slice(0, 3));
 
-const ASSIGNMENT_FILTER = ([assignmentExpr, scope, _]) => _filterAssignments(assignmentExpr);
-
-
-// TODO: support simple invocations as well do to side effects?
-function _filterAssignments(assignmentExpr: Vertex): boolean {
-    const {incoming} = assignmentExpr;
-    if (!incoming || incoming.length !== 1) {
-        throw new Error("Bad vertex");
-    }
-
-    const edge = incoming[0];
-    const {label, sources} = edge;
-
-    if (label === Syntax.BINARY_EXPRESSION) {
-        return sources[1].label === "=";
-    }
-
-    return true;
-}
 
 export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hypergraph<VData> {
     const m = new HMatcher(sourcePeg);
@@ -60,9 +41,6 @@ export function performPointsToAnalysis<VData>(sourcePeg: Hypergraph<VData>): Hy
         resolve: "targets",
     }, {
         excludedScopes: [Syntax.CATCH_CLAUSE],
-        routeOverrides: {
-            resultFilter: ASSIGNMENT_FILTER,
-        },
     })).map(ANALYSIS_EXPRESSION_FACTORY);
 
     // 2) Filter supported expressions
@@ -139,7 +117,10 @@ class AndersenAnalyis<VData> implements PointsToAnalysis<VData> {
             case Syntax.VARIABLE_DECLARATION: {
                 const [left, op, right] = _parseBinaryExpression(assignmentExpr, false);
 
-                assert(op === "=");
+                if (op !== "=") {
+                    // Reject non-assignement binary expressions
+                    return;
+                }
 
                 if (_isArrayLiteralVertex(left)) {
                     this._addMultiAssignConstraint(expr, left, right);

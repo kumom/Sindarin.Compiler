@@ -9,7 +9,7 @@ type Iterable<T> = T[] | Generator<T> | IterableIterator<T>;
 
 // TODO: move to util
 // @ts-ignore
-function* lazyFlatMap<T, TResult>(arr: Iterable<T>, map: (obj: T) => Generator<TResult>): Generator<TResult> {
+export function* lazyFlatMap<T, TResult>(arr: Iterable<T>, map: (obj: T) => Generator<TResult>): Generator<TResult> {
     if (!arr) return;
 
     for (let obj of arr) {
@@ -63,7 +63,6 @@ interface PatternDefinitionPayload {
     firstOnly?: boolean;
     topLevel?: boolean;  // Is Top Level of search
     resolve?: "sources" | "targets";
-    resultFilter?: (route: Route<any>) => boolean;
     reflexive?: boolean;
 }
 
@@ -95,9 +94,12 @@ class HMatcher<VData = any> {
      * Matches a specific vertex, and yields outgoing edges
      * @param v
      */
-    v(v: Vertex<VData>) {
+    v(v: {id: number}) {
+        const {id} = v;
+        const vertex = this.g._get(id);
+
         function* aux() {
-            yield* v.outgoing;
+            yield* vertex.outgoing;
         }
 
         return this._matched(() => aux());
@@ -185,7 +187,7 @@ class HMatcher<VData = any> {
      * @param definitions how to traverse the graph
      */
     resolvePatternDefinitions(pattern: HMatcher.RoutePatternDefinition, handler: (route: Route<VData>) => void) {
-        const {definitions, firstOnly, resultFilter, reflexive = true} = pattern;
+        const {definitions, firstOnly, reflexive = true} = pattern;
 
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
@@ -211,7 +213,6 @@ class HMatcher<VData = any> {
             firstOnly,
             topLevel: true,
             resolve,
-            resultFilter,
             reflexive,
         });
     }
@@ -235,13 +236,12 @@ namespace HMatcher {
     export interface RoutePatternDefinition {
         definitions?: PatternDefinition[];
         firstOnly?: boolean;  // Get only first route (per stating-set element)
-        resultFilter?: (route: Route<any>) => boolean;
         reflexive?: boolean;  // Defaults to true
     }
 
     export interface PatternDefinition {
         labelPred?: LabelPat;  // Label matcher
-        vertex?: Vertex; // For first definition only!
+        vertex?: { id: number, label: string }; // For first definition only!
         index?: number; // Child vertex resolution
 
         through?: "incoming" | "outgoing";  // Traversal direction
@@ -358,7 +358,7 @@ namespace HMatcher {
         resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
             const {labelPred, vertex, index, through, modifier, excluding} = nextDefinition || {};
-            const {vertexLabelPat, visited, firstOnly, topLevel, resolve, resultFilter, reflexive} = payload;
+            const {vertexLabelPat, visited, firstOnly, topLevel, resolve, reflexive} = payload;
 
             const methodBase = THROUGH_TO_METHOD[through];
             const method = modifier ? `${methodBase}_${modifier}` : methodBase;
@@ -426,10 +426,6 @@ namespace HMatcher {
                     };
 
                     found = subquery.resolvePatternDefinitions(handler, restOfDefinitions, nextPayload, extendedRoute);
-                    return;
-                }
-
-                if (resultFilter && !resultFilter(extendedRoute)) {
                     return;
                 }
 
