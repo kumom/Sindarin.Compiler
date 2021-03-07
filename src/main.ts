@@ -139,8 +139,8 @@ const TOOLCHAINS = {
     'ts': {parser: TypeScriptParser, seman: semanticAnalysis_TS}};
 
 
-var program = {language: 'c', filename: '/data/c/bincnt.c', entry: 'counter'};
-//var program = {language: 'ts', filename: '/data/typescript/lib/net.ts', entry: 'listen'};
+// var program = {language: 'c', filename: '/data/c/bincnt.c', entry: 'counter'};
+var program = {language: 'ts', filename: '/data/typescript/lib/net.ts', entry: 'listen'};
 
 
 function main() {
