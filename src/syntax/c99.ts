@@ -30,5 +30,4 @@ class C99Parser extends Parser {
 }
 
 
-
 export { C99Parser }

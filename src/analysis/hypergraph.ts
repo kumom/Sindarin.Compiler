@@ -1,6 +1,7 @@
-import * as uuid from 'uuid';
-import * as vis from 'vis-metapkg';
-import { Ast } from '../ide/panels/ast-panel';
+import { v1 as uuidv1 } from 'uuid';
+import { Node, Edge, Options, Network, IdType } from 'vis-network';
+import { DataSet } from 'vis-data';
+import type { Ast } from "../syntax/parser";
 
 class Hypergraph<VData = any> {
 
@@ -44,7 +45,7 @@ class Hypergraph<VData = any> {
         }
         var added = edges.map(ed => {
             var e = new Hypergraph.Edge(ed.label,
-                            ed.sources.map(get), get(ed.target));
+                ed.sources.map(get), get(ed.target));
             e.sources.forEach(u => u.outgoing.push(e));
             e.target.incoming.push(e);
             return e;
@@ -84,12 +85,12 @@ class Hypergraph<VData = any> {
             var root = ++c, u = self._get(root);
             if (Array.isArray(ast)) {
                 var subs = ast.map(aux);
-                self.add([{label: ast.type || "", sources: subs, target: root}]);
+                self.add([{ label: ast.type || "", sources: subs, target: root }]);
             }
             else {
                 u.label = ast.text;
             }
-            u.data = <any>{ast} as VData /** @oops */
+            u.data = <any>{ ast } as VData /** @oops */
             return root;
         }
         aux(ast);
@@ -113,15 +114,17 @@ class Hypergraph<VData = any> {
     }
 
     toVis(edgeNodeProfile = null) {
-        var nodes = new vis.DataSet<vis.Node>(
+        var nodes = new DataSet<Node>(
             [...this.vertices.values()].map(u => {
-                return {id: u.id, label: u.label || `${u.id}`, shape: 'box',
-                        ...(u.label ? LIT : {})};
+                return {
+                    id: u.id, label: u.label || `${u.id}`, shape: 'box',
+                    ...(u.label ? LIT : {})
+                };
             })
         );
 
         // Collect edges
-        var edges = new vis.DataSet<vis.Edge>([]);
+        var edges = new DataSet<Edge>([]);
 
         for (let e of this.edges) {
             var ve = e.toVis(edgeNodeProfile);
@@ -165,15 +168,16 @@ namespace Hypergraph {
         toVis(edgeNodeProfile = null) {
             edgeNodeProfile = edgeNodeProfile || NUCLEUS;
 
-            var nucleus = uuid.v1(),
-                nodes: vis.Node[] = [
-                    {id: nucleus, label: this.label, ...edgeNodeProfile},
+            var nucleus = uuidv1(),
+                nodes: Node[] = [
+                    { id: nucleus, label: this.label, ...edgeNodeProfile },
                 ],
-                edges: vis.Edge[] = [
-                    {from: nucleus, to: this.target.id, ...TO},
-                    ...this.sources.map(v => ({from: v.id, to: nucleus, ...FROM}))
+                // @ts-ignore
+                edges: Edge[] = [{ from: nucleus, to: this.target.id, ...TO },
+                // @ts-ignore
+                ...this.sources.map(v => ({ from: v.id, to: nucleus, ...FROM }))
                 ];
-            return {nodes, edges};
+            return { nodes, edges };
         }
     }
 
@@ -185,32 +189,36 @@ namespace Hypergraph {
 
 }
 
-const NUCLEUS = {shape: 'box', color: '#cca', shapeProperties: {borderRadius: 99}},
-      TO = {arrows: {to: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
-      FROM = {arrows: {middle: {enabled: true, scaleFactor: 0.5}}, color: '#997', length: 1},
-      LIT = {color: '#9d9', shapeProperties: {borderRadius: 0}},
-      FAINT = {color: {background: '#ddd', border: '#bbb',
-                       highlight: {background: '#ddd', border: '#bbb'}},
-               font: {color: '#ccc'}, opacity: 0.5},
-      HIE = {
-          hierarchical: {
-              direction: 'DU',
-              sortMethod: 'directed',
-              levelSeparation: 75
-          }
-      },
-      PHY = {
-          physics: {
-              enabled: true,
-              solver: 'repulsion',
-              minVelocity: 4,
-              timestep: 1,
-              hierarchicalRepulsion: {
-                  nodeDistance: 50,
-                  avoidOverlap: 1
-              }
-          }
-      };
+const NUCLEUS = { shape: 'box', color: '#cca', shapeProperties: { borderRadius: 99 } },
+    TO = { arrows: { to: { enabled: true, scaleFactor: 0.5 } }, color: '#997', length: 1 },
+    FROM = { arrows: { middle: { enabled: true, scaleFactor: 0.5 } }, color: '#997', length: 1 },
+    LIT = { color: '#9d9', shapeProperties: { borderRadius: 0 } },
+    FAINT = {
+        color: {
+            background: '#ddd', border: '#bbb',
+            highlight: { background: '#ddd', border: '#bbb' }
+        },
+        font: { color: '#ccc' }, opacity: 0.5
+    },
+    HIE = {
+        hierarchical: {
+            direction: 'DU',
+            sortMethod: 'directed',
+            levelSeparation: 75
+        }
+    },
+    PHY = {
+        physics: {
+            enabled: true,
+            solver: 'repulsion',
+            minVelocity: 4,
+            timestep: 1,
+            hierarchicalRepulsion: {
+                nodeDistance: 50,
+                avoidOverlap: 1
+            }
+        }
+    };
 
 
 interface VisSelection {
@@ -230,7 +238,7 @@ class HypergraphView {
     peg: Hypergraph;
     data: HypergraphView.Data;
 
-    options: vis.Options = {
+    options: Options = {
         layout: {
             improvedLayout: false,
             ...HIE
@@ -240,7 +248,7 @@ class HypergraphView {
         },
         ...PHY
     };
-    network: vis.Network
+    network: Network
 
     constructor(peg: Hypergraph, data: HypergraphView.Data) {
         this.peg = peg;
@@ -250,7 +258,7 @@ class HypergraphView {
     }
 
     render(on: HTMLElement) {
-        this.network = new vis.Network(on, this.data, this.options);
+        this.network = new Network(on, this.data, this.options);
 
         // TODO: off
         this.network.on('selectNode', this._onNodeSelected.bind(this));
@@ -261,19 +269,19 @@ class HypergraphView {
 
     nail() {
         this.network.storePositions();
-        this.network.setOptions({layout: {hierarchical: {enabled: false}}});
+        this.network.setOptions({ layout: { hierarchical: { enabled: false } } });
         this.data.nodes.update(this.data.nodes.getIds()
-            .map(id => ({id, fixed: true /*physics: false*/})));
+            .map(id => ({ id, fixed: true /*physics: false*/ })));
         this.data.edges.update(this.data.edges.getIds()
-            .map(id => ({id, physics: false})));
-        this.network.setOptions({physics: {solver: 'repulsion'}});
+            .map(id => ({ id, physics: false })));
+        this.network.setOptions({ physics: { solver: 'repulsion' } });
     }
 
     fade() {
         this.data.nodes.update(this.data.nodes.getIds()
-            .map(id => ({id, ...FAINT})));
+            .map(id => ({ id, ...FAINT })));
         this.data.edges.update(this.data.edges.getIds()
-            .map(id => ({id, color: '#ccc', smooth: false})));
+            .map(id => ({ id, color: '#ccc', smooth: false })));
         this.postprocess();
     }
 
@@ -302,11 +310,11 @@ class HypergraphView {
         }
     }
 
-    selectLevel(node?: vis.IdType) {
+    selectLevel(node?: IdType) {
         this.network.selectNodes(this.getLevel(node).map(u => u.id));
     }
 
-    getLevel(node?: vis.IdType) {
+    getLevel(node?: IdType) {
         if (!node) {
             node = this.network.getSelectedNodes()[0];
             if (!node) return;
@@ -315,7 +323,7 @@ class HypergraphView {
         return Object.values(this._nodes).filter(u => u.y == pos.y);
     }
 
-    sortHorizontally(nodes: vis.Node[]) {
+    sortHorizontally(nodes: Node[]) {
         if (!nodes) {
             var _m = this._nodes;
             nodes = this.network.getSelectedNodes().map(id => _m[id]);
@@ -333,11 +341,11 @@ class HypergraphView {
     }
 
     get _nodes() {  /** @oops */
-        return (<any>this.network).body.nodes as {[id: string]: vis.Node}
+        return (<any>this.network).body.nodes as { [id: string]: Node }
     }
 
     get _edges() {  /** @oops */
-        return (<any>this.network).body.edges as {[id: string]: vis.Edge}
+        return (<any>this.network).body.edges as { [id: string]: Edge }
     }
 
     _drawingContext() {
@@ -355,10 +363,10 @@ class HypergraphView {
      * @oops this is using internal APIs and monkey-patching because the
      *   EdgeType class hierarchy is not exposed.
      */
-    _shortenEdge(e: vis.Edge) {
+    _shortenEdge(e: Edge) {
         var shape = (<any>e).edgeType;  /** @oops internal API */
         if (shape.constructor.name === 'StraightEdge') {
-            shape._drawLine = function(ctx: CanvasRenderingContext2D, val) {
+            shape._drawLine = function (ctx: CanvasRenderingContext2D, val) {
                 this.fromPoint = this.getArrowData(ctx, 'from', null, false, false, val).point;
                 this.toPoint = this.getArrowData(ctx, 'to', null, false, false, val).point;
                 this.constructor.prototype._drawLine.call(this, ctx, val);
@@ -378,7 +386,7 @@ class HypergraphView {
         setTimeout(() => this.merge(overlayView), 1);
     }
 
-    _onNodeSelected({nodes}: VisSelectionEventArgs) {
+    _onNodeSelected({ nodes }: VisSelectionEventArgs) {
         // if (nodes.length !== 1) {
         //     throw new Error("Umm... not yet :-)")
         // }
@@ -396,7 +404,7 @@ class HypergraphView {
         // this.overlay(scopeResolutionPeg, false, {shape: 'box', color: '#ca2340', shapeProperties: {borderRadius: 99}});
     }
 
-    _onNodeDeselected({ previousSelection}: VisSelectionEventArgs) {
+    _onNodeDeselected({ previousSelection }: VisSelectionEventArgs) {
 
     }
 }
@@ -405,13 +413,11 @@ class HypergraphView {
 namespace HypergraphView {
 
     export type Data = {
-        nodes: vis.DataSet<vis.Node, 'id'>
-        edges: vis.DataSet<vis.Edge, 'id'>
-        options?: vis.Options  /* not strictly part of the data, but returned from e.g. vis.parseDOTNetwork */
+        nodes: DataSet<Node, 'id'>
+        edges: DataSet<Edge, 'id'>
+        options?: Options  /* not strictly part of the data, but returned from e.g. parseDOTNetwork */
     };
 
 }
-
-
 
 export { Hypergraph, HypergraphView }

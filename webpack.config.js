@@ -1,58 +1,89 @@
 const path = require('path');
-const VueLoaderPlugin = require('vue-loader/lib/plugin');
+const webpack = require('webpack');
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-require("@babel/polyfill");
+const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
-    entry: ['@babel/polyfill', './src/main.ts'],
+    entry: ['./src/index.tsx'],
     output: {
-        path: path.resolve(__dirname, "dist"),
+        path: path.resolve(__dirname, "dist")
     },
-    target: 'nwjs',
     node: {
         __filename: "mock",
+        __dirname: true
+    },
+    stats: {
+        errorDetails: true,
     },
     module: {
         rules: [
             {
+                test: /\.(woff|woff2|eot|ttf|otf)$/,
+                type: 'asset/resource'
+            },
+            {
                 test: /\.tsx?$/,
-                use: 'ts-loader',
                 exclude: /node_modules/,
+                use: ['ts-loader'],
             },
             {
-                test: /\.vue$/,
-                loader: 'vue-loader'
-            },
-            {
-                test: /\.js$/,
-                loader: 'babel-loader'
+                test: /\.(js|jsx)$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        presets: [
+                            ['@babel/preset-env', {
+                                "targets": "defaults",
+                                "forceAllTransforms": true
+                            }],
+                            "@babel/preset-react"
+                        ]
+                    }
+                },
             },
             {
                 test: /\.css$/,
+                exclude: path.resolve(__dirname, './src'),
+                use: ['style-loader', 'css-loader'],
+            },
+            {
+                test: /\.s?css$/,
+                include: path.resolve(__dirname, './src'),
                 use: [
-                    'vue-style-loader',
-                    'css-loader'
-                ]
-            }
+                  "style-loader",
+                  "css-loader",
+                  "sass-loader",
+                ],
+              }
         ],
     },
     resolve: {
-        extensions: ['.tsx', '.ts', '.js'],
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
     },
     optimization: {
         minimize: false,
     },
     devServer: {
-        contentBase: path.join(__dirname, 'dist'),
+        contentBase: [path.join(__dirname, 'dist')],
         liveReload: true,
         compress: true,
         writeToDisk: true,
+        watchContentBase: true,
+        hot: true
     },
     plugins: [
-        new VueLoaderPlugin(),
         new HtmlWebpackPlugin({
             title: "Sindarin Compiler",
             template: "./src/index.html"
-        })
+        }),
+        new webpack.HotModuleReplacementPlugin(),
+        new CopyPlugin({
+            patterns: [
+                { from: path.join(__dirname, 'data'), to: path.join(__dirname, 'dist/data') },
+            ],
+        }),
+        new MonacoWebpackPlugin()
     ]
 }

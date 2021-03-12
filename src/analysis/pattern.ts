@@ -1,5 +1,5 @@
-import {Hypergraph} from './hypergraph';
-import {Ast} from '../ide/panels/ast-panel';
+import { Hypergraph } from './hypergraph';
+import { Ast } from "../syntax/parser";
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
@@ -81,7 +81,7 @@ class HMatcher<VData = any> {
      */
     lt_rtc(target: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toObjectWithLabel(label);
-        const pExclude = HMatcher.toObjectWithLabel(excluding, {negate: true});
+        const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
 
         function* aux(v: Vertex) {
             for (let e of lazyFilter<Edge>(v.incoming, pExclude)) {
@@ -102,7 +102,7 @@ class HMatcher<VData = any> {
      */
     sl_rtc(source: Vertex<VData>, label: LabelPat, excluding?: LabelPat) {
         const p = HMatcher.toObjectWithLabel(label);
-        const pExclude = HMatcher.toObjectWithLabel(excluding, {negate: true});
+        const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
 
         function* aux(v: Vertex) {
             for (let e of lazyFilter<Edge>(v.outgoing, pExclude)) {
@@ -121,7 +121,7 @@ class HMatcher<VData = any> {
      * @param definitions how to traverse the graph
      */
     resolvePatternDefinitions(pattern: HMatcher.RoutePatternDefinition, handler: (route: Route<VData>) => void) {
-        const {definitions, firstOnly} = pattern;
+        const { definitions, firstOnly } = pattern;
 
         if (!definitions || !definitions.length) {
             throw new Error("Cannot resolve match without definitions");
@@ -129,7 +129,7 @@ class HMatcher<VData = any> {
 
         const [firstDefinition, ...restOfDefinitions] = definitions;
 
-        const {labelPred, vertex, through, modifier, excluding} = firstDefinition;
+        const { labelPred, vertex, through, modifier, excluding } = firstDefinition;
         if (through || modifier || excluding) {
             throw new Error("First definition can only define `labelPred` or `vertex`")
         }
@@ -179,7 +179,7 @@ namespace HMatcher {
 
     export function toObjectWithLabel(l: LabelPat, options?: ObjectWithLabelPredOptions): ObjectWithLabel {
         if (options?.negate) {
-            const {negate, ...rest} = options;
+            const { negate, ...rest } = options;
             const innerPred = this.toObjectWithLabel(l, rest);
             return e => !innerPred(e);
         }
@@ -252,7 +252,7 @@ namespace HMatcher {
 
         resolvePatternDefinitions(handler: (route: Vertex<VData>[]) => void, definitions: PatternDefinition[], payload: PatternDefinitionPayload, route?: Route<VData>): boolean {
             const [nextDefinition, ...restOfDefinitions] = definitions && definitions.length ? definitions : [null];
-            const {labelPred, vertex, through, modifier, excluding} = nextDefinition || {};
+            const { labelPred, vertex, through, modifier, excluding } = nextDefinition || {};
 
             const methodBase = THROUGH_TO_METHOD[through];
             const method = modifier ? `${methodBase}_${modifier}` : methodBase;
@@ -277,7 +277,7 @@ namespace HMatcher {
             }
 
             let found = false;
-            const {vertexLabelPat, visited, firstOnly} = payload;
+            const { vertexLabelPat, visited, firstOnly } = payload;
 
             const routeHandler = (u) => {
                 if (found && firstOnly) {
@@ -367,4 +367,4 @@ import LabelPat = HMatcher.LabelPat;
 import Matched = HMatcher.Matched;
 
 
-export {HMatcher}
+export { HMatcher }
