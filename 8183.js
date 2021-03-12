@@ -1,6 +1,4 @@
-exports.id = 8183;
-exports.ids = [8183];
-exports.modules = {
+(self["webpackChunksindarin_compiler"] = self["webpackChunksindarin_compiler"] || []).push([[8183],{
 
 /***/ 68183:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
@@ -1495,5 +1493,4 @@ function setupMode(defaults, modeId) {
 
 /***/ })
 
-};
-;
+}]);

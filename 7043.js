@@ -1,6 +1,4 @@
-exports.id = 7043;
-exports.ids = [7043];
-exports.modules = {
+(self["webpackChunksindarin_compiler"] = self["webpackChunksindarin_compiler"] || []).push([[7043],{
 
 /***/ 17043:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
@@ -232,5 +230,4 @@ var language = {
 
 /***/ })
 
-};
-;
+}]);

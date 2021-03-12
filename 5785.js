@@ -1,6 +1,4 @@
-exports.id = 5785;
-exports.ids = [5785];
-exports.modules = {
+(self["webpackChunksindarin_compiler"] = self["webpackChunksindarin_compiler"] || []).push([[5785],{
 
 /***/ 25785:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
@@ -8835,5 +8833,4 @@ var richEditConfiguration = {
 
 /***/ })
 
-};
-;
+}]);

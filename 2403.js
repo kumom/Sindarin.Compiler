@@ -1,6 +1,4 @@
-exports.id = 2403;
-exports.ids = [2403];
-exports.modules = {
+(self["webpackChunksindarin_compiler"] = self["webpackChunksindarin_compiler"] || []).push([[2403],{
 
 /***/ 52403:
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
@@ -36614,5 +36612,4 @@ function disposeAll(disposables) {
 
 /***/ })
 
-};
-;
+}]);

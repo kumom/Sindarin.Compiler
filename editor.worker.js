@@ -1,5 +1,22 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
+/******/ 	// The require scope
+/******/ 	var __webpack_require__ = {};
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/global */
+/******/ 	(() => {
+/******/ 		__webpack_require__.g = (function() {
+/******/ 			if (typeof globalThis === 'object') return globalThis;
+/******/ 			try {
+/******/ 				return this || new Function('return this')();
+/******/ 			} catch (e) {
+/******/ 				if (typeof window === 'object') return window;
+/******/ 			}
+/******/ 		})();
+/******/ 	})();
+/******/ 	
+/************************************************************************/
 var __webpack_exports__ = {};
 
 // UNUSED EXPORTS: initialize
@@ -467,7 +484,7 @@ let _locale = undefined;
 let _language = (/* unused pure expression or super */ null && (LANGUAGE_DEFAULT));
 let _translationsConfigFile = undefined;
 let _userAgent = undefined;
-const _globals = (typeof self === 'object' ? self : typeof global === 'object' ? global : {});
+const _globals = (typeof self === 'object' ? self : typeof __webpack_require__.g === 'object' ? __webpack_require__.g : {});
 let nodeProcess = undefined;
 if (typeof process !== 'undefined') {
     // Native environment (non-sandboxed)
