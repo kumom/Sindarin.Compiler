@@ -1,63 +1,73 @@
 import React from 'react'
 import './Resizer.scss'
-import debounce from 'lodash.debounce'
 
 export default class Resizer extends React.Component<{}, { [key: string]: any }> {
   ref: any
   leftRef: any
   rightRef: any
   active: boolean
+  leftWidth: number
+  rightWidth: number
 
   constructor(props: {}) {
     super(props)
-    this.ref = React.createRef()
-    this.leftRef = null
-    this.rightRef = null
-    this.active = false
+    this.ref = React.createRef();
+    this.leftRef = null;
+    this.rightRef = null;
+    this.active = false;
+    this.leftWidth = 0;
+    this.rightWidth = 0;
 
-    this.onMouseMove = this.onMouseMove.bind(this)
+    this.onMouseMove = this.onMouseMove.bind(this);
   }
 
   onMouseMove(event: MouseEvent): void {
-    if (!this.active) return
+    if (!this.active) return;
 
-    event.preventDefault()
-    event.stopPropagation()
+    event.preventDefault();
+    event.stopPropagation();
 
-    debounce(() => this.resize(event.movementX), 50)()
-  }
-
-  private resize(diff: number): void {
-    if (!this.leftRef && this.ref.current) { this.leftRef = this.ref.current.previousElementSibling }
-    if (!this.rightRef && this.ref.current) { this.rightRef = this.ref.current.nextElementSibling }
+    if (!this.leftRef && this.ref.current) {
+      this.leftRef = this.ref.current.previousElementSibling;
+      this.leftWidth = Number(window.getComputedStyle(this.leftRef).getPropertyValue('width').replace(/[^0-9.]/g, ''));
+    }
+    if (!this.rightRef && this.ref.current) {
+      this.rightRef = this.ref.current.nextElementSibling;
+      this.rightWidth = Number(window.getComputedStyle(this.rightRef).getPropertyValue('width').replace(/[^0-9.]/g, ''));
+    }
 
     if (this.leftRef && this.leftRef.classList.contains('panel')) {
-      const leftWidth = Number(window.getComputedStyle(this.leftRef).getPropertyValue('width').replace(/[^0-9.]/g, ''))
-      this.leftRef.style.width = (leftWidth + diff) + 'px'
+      this.leftWidth += event.movementX;
+      this.leftRef.style.width = this.leftWidth + 'px';
     }
     if (this.rightRef && this.rightRef.classList.contains('panel')) {
-      const rightWidth = Number(window.getComputedStyle(this.rightRef).getPropertyValue('width').replace(/[^0-9.]/g, ''))
-      this.rightRef.style.width = (rightWidth - diff) + 'px'
+      this.rightWidth -= event.movementX;
+      this.rightRef.style.width = this.rightWidth + 'px';
     }
   }
 
   shouldComponentUpdate(): boolean {
-    return false
+    return false;
   }
 
   componentDidMount(): void {
-    document.addEventListener('mouseup', () => { this.active = false })
-    document.addEventListener('mousemove', this.onMouseMove)
+    document.addEventListener('mouseup', () => { this.active = false; });
+    document.addEventListener('mouseleave', () => { this.ref.current.style.cursor = "default"; });
+    document.addEventListener('mousemove', this.onMouseMove);
   }
 
   render(): JSX.Element {
     return (
       <div
         className='resizer' ref={this.ref}
+        onMouseOver={() => {
+          this.ref.current.style.cursor = "col-resize";
+        }}
         onMouseDown={() => {
-          this.active = true
+          this.active = true;
+          this.ref.current.style.cursor = "col-resize";
         }}
       />
-    )
+    );
   }
 }
