@@ -71,7 +71,8 @@ module.exports = {
         compress: true,
         writeToDisk: true,
         watchContentBase: true,
-        hot: true
+        hot: true,
+        port: 8080
     },
     plugins: [
         new HtmlWebpackPlugin({

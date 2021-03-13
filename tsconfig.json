@@ -15,6 +15,6 @@
     "strict": false
   },
   "include": ["./src"],
-  "typeRoots": ["./node_modules/@types", "./src"],
+  "typeRoots": ["./node_modules/@types"],
   "exclude": ["node_modules", "dist"]
 }
