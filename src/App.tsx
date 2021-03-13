@@ -48,22 +48,26 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
     this.setState({ code });
     try {
       const ast = this.state.parser.parse(code);
-      this.setState({ ast });
+      this.setState({ ast, parseErrorMsg: "" });
     } catch (e) {
       this.setState({ ast: null, parseErrorMsg: e.toString() });
     }
+
+    this.updateHighlightedRange();
   }
 
   updateHighlightedRange(highlightedRange?: CodeRange) {
-    if (highlightedRange) 
-      this.setState({highlightedRange});
-    else 
-      this.setState({highlightedRange: {
-        startLineNumber: 0,
-        startColumn: 0,
-        endLineNumber: 0,
-        endColumn: 0
-      }});
+    if (highlightedRange)
+      this.setState({ highlightedRange });
+    else
+      this.setState({
+        highlightedRange: {
+          startLineNumber: 0,
+          startColumn: 0,
+          endLineNumber: 0,
+          endColumn: 0
+        }
+      });
   }
 
   setUpLang(language: string) {

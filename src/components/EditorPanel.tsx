@@ -14,6 +14,7 @@ export default class EditorPanel extends React.Component<{ [key: string]: any },
         updateCode: (code: string) => void
     }) {
         super(props);
+
         this.editorRef = React.createRef();
         this.deltaDecorations = []
     }
@@ -51,7 +52,9 @@ export default class EditorPanel extends React.Component<{ [key: string]: any },
                 onChange={(newValue, event) => { this.props.updateCode(newValue); }}
                 editorDidMount={(editor, monaco) => {
                     this.editorRef.current = editor;
-                    editor.focus()
+                    editor.onDidChangeModelContent((event) => {
+                        editor.setPosition({ lineNumber: 1, column: 1 })
+                    })
                 }}
             /></div>
     }

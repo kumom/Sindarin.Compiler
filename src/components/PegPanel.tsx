@@ -60,7 +60,7 @@ export default class PegPanel extends React.Component<{ [key: string]: any }, { 
         return nextProps.ast !== this.props.ast
             || nextProps.language !== this.props.language
             || nextProps.showDefPeg !== this.props.showDefPeg
-            || nextState.numVertices !== this.state.numVertices
+            || nextState.numVertices !== this.state.numVertices;
     }
 
     componentDidUpdate() {
