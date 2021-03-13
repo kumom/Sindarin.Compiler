@@ -1,30 +1,30 @@
-import React from "react";
-import "./App.scss";
+import React from 'react'
+import './App.scss'
 
-import Resizer from "./components/Resizer";
-import EditorPanel from "./components/EditorPanel";
-import Toolbar from "./components/Toolbar";
-import AstPanel from "./components/AstPanel";
-import PegPanel from "./components/PegPanel";
-import { CodeRange } from "./syntax/parser";
+import Resizer from './components/Resizer'
+import EditorPanel from './components/EditorPanel'
+import Toolbar from './components/Toolbar'
+import AstPanel from './components/AstPanel'
+import PegPanel from './components/PegPanel'
+import { CodeRange } from './syntax/parser'
 
 export default class App extends React.Component<{ [key: string]: any }, { [key: string]: any }> {
-  constructor(props: any) {
-    super(props);
-    this.updateLanguage = this.updateLanguage.bind(this);
-    this.updatePegsVisibility = this.updatePegsVisibility.bind(this);
-    this.updateCode = this.updateCode.bind(this);
-    this.updateHighlightedRange = this.updateHighlightedRange.bind(this);
+  constructor (props: any) {
+    super(props)
+    this.updateLanguage = this.updateLanguage.bind(this)
+    this.updatePegsVisibility = this.updatePegsVisibility.bind(this)
+    this.updateCode = this.updateCode.bind(this)
+    this.updateHighlightedRange = this.updateHighlightedRange.bind(this)
 
     this.state = {
-      language: "",
+      language: '',
       parser: null,
       seman: null,
-      filename: "",
-      entry: "",
-      code: "",
+      filename: '',
+      entry: '',
+      code: '',
       ast: null,
-      parseErrorMsg: "",
+      parseErrorMsg: '',
       highlightedRange: {
         startLineNumber: 0,
         startColumn: 0,
@@ -32,29 +32,27 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
         endColumn: 0
       },
       showDefPeg: false
-    };
+    }
   }
 
-  updatePegsVisibility(showDefPeg: boolean) {
-    this.setState({ showDefPeg });
+  updatePegsVisibility (showDefPeg: boolean) {
+    this.setState({ showDefPeg })
   }
 
-  updateCode(code: string) {
-    this.setState({ code });
+  updateCode (code: string) {
+    this.setState({ code })
     try {
-      const ast = this.state.parser.parse(code);
-      this.setState({ ast, parseErrorMsg: "" });
+      const ast = this.state.parser.parse(code)
+      this.setState({ ast, parseErrorMsg: '' })
     } catch (e) {
-      this.setState({ ast: null, parseErrorMsg: e.toString() });
+      this.setState({ ast: null, parseErrorMsg: e.toString() })
     }
 
-    this.updateHighlightedRange();
+    this.updateHighlightedRange()
   }
 
-  updateHighlightedRange(highlightedRange?: CodeRange) {
-    if (highlightedRange)
-      this.setState({ highlightedRange });
-    else
+  updateHighlightedRange (highlightedRange?: CodeRange) {
+    if (highlightedRange != null) { this.setState({ highlightedRange }) } else {
       this.setState({
         highlightedRange: {
           startLineNumber: 0,
@@ -62,42 +60,44 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
           endLineNumber: 0,
           endColumn: 0
         }
-      });
+      })
+    }
   }
 
-  updateLanguage(language: string) {
-    this.setState({ language: language });
-    this.setState({ parser: this.props.config[language].parser });
-    this.setState({ seman: this.props.config[language].seman });
-    this.setState({ filename: this.props.config[language].filename });
-    this.setState({ entry: this.props.config[language].entry });
+  updateLanguage (language: string) {
+    this.setState({ language: language })
+    this.setState({ parser: this.props.config[language].parser })
+    this.setState({ seman: this.props.config[language].seman })
+    this.setState({ filename: this.props.config[language].filename })
+    this.setState({ entry: this.props.config[language].entry })
 
     fetch(this.props.config[language].filename).then(async (res) => {
       res.text().then(this.updateCode)
-    });
+    })
   }
 
-  componentDidMount() {
-    this.updateLanguage("C");
+  componentDidMount () {
+    this.updateLanguage('C')
   }
 
-  render() {
+  render () {
     return (
-      <div id="ide">
+      <div id='ide'>
 
         <Toolbar
           allLanguages={Object.keys(this.props.config)}
           language={this.state.language}
           updateLanguage={this.updateLanguage}
           updatePegsVisibility={this.updatePegsVisibility}
-        ></Toolbar>
+        />
 
-        <div id="panel-wrapper">
+        <div id='panel-wrapper'>
           <EditorPanel
             code={this.state.code}
             language={this.state.language}
             highlightedRange={this.state.highlightedRange}
-            updateCode={this.updateCode} />
+            updateCode={this.updateCode}
+          />
           <Resizer />
           <AstPanel
             parseErrorMsg={this.state.parseErrorMsg}
@@ -113,8 +113,8 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
             showDefPeg={this.state.showDefPeg}
           />
         </div>
-        
+
       </div>
-    );
+    )
   }
 }
