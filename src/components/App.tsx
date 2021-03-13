@@ -1,12 +1,12 @@
 import React from 'react'
 import './App.scss'
 
-import Resizer from './components/Resizer'
-import EditorPanel from './components/EditorPanel'
-import Toolbar from './components/Toolbar'
-import AstPanel from './components/AstPanel'
-import PegPanel from './components/PegPanel'
-import { CodeRange } from './syntax/parser'
+import Resizer from './Resizer'
+import EditorPanel from './EditorPanel'
+import Toolbar from './Toolbar'
+import AstPanel from './AstPanel'
+import PegPanel from './PegPanel'
+import { CodeRange } from '../syntax/parser'
 
 export default class App extends React.Component<{ [key: string]: any }, { [key: string]: any }> {
   constructor (props: any) {

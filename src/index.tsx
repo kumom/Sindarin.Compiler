@@ -7,7 +7,7 @@ import { resolveLexicalScope } from './analysis/semantics'
 
 import React from 'react'
 import ReactDOM from 'react-dom'
-import App from './App'
+import App from './components/App'
 
 import Edge = Hypergraph.Edge
 import Vertex = Hypergraph.Vertex
