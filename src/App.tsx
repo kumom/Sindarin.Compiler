@@ -35,10 +35,6 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
     };
   }
 
-  updateLanguage(newLanguge: string) {
-    this.setUpLang(newLanguge);
-  }
-
   updatePegsVisibility(showDefPeg: boolean) {
     this.setState({ showDefPeg });
   }
@@ -69,7 +65,7 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
       });
   }
 
-  setUpLang(language: string) {
+  updateLanguage(language: string) {
     this.setState({ language: language });
     this.setState({ parser: this.props.config[language].parser });
     this.setState({ seman: this.props.config[language].seman });
@@ -82,7 +78,7 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
   }
 
   componentDidMount() {
-    this.setUpLang("C");
+    this.updateLanguage("C");
   }
 
   render() {
