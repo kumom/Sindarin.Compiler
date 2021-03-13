@@ -17,11 +17,11 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
     this.updateHighlightedRange = this.updateHighlightedRange.bind(this);
 
     this.state = {
-      language: "C",
-      parser: props.config["C"].parser,
-      seman: props.config["C"].seman,
-      filename: props.config["C"].filename,
-      entry: props.config["C"].entry,
+      language: "",
+      parser: null,
+      seman: null,
+      filename: "",
+      entry: "",
       code: "",
       ast: null,
       parseErrorMsg: "",
@@ -31,7 +31,6 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
         endLineNumber: 0,
         endColumn: 0
       },
-
       showDefPeg: false
     };
   }
@@ -83,7 +82,7 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
   }
 
   componentDidMount() {
-    this.setUpLang(this.state.language);
+    this.setUpLang("C");
   }
 
   render() {
@@ -96,6 +95,7 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
           updateLanguage={this.updateLanguage}
           updatePegsVisibility={this.updatePegsVisibility}
         ></Toolbar>
+
         <div id="panel-wrapper">
           <EditorPanel
             code={this.state.code}
@@ -103,16 +103,13 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
             highlightedRange={this.state.highlightedRange}
             updateCode={this.updateCode} />
           <Resizer />
-
           <AstPanel
             parseErrorMsg={this.state.parseErrorMsg}
             ast={this.state.ast}
             highlightedRange={this.state.highlightedRange}
             updateHighlightedRange={this.updateHighlightedRange}
           />
-
           <Resizer />
-
           <PegPanel
             language={this.state.language}
             ast={this.state.ast}
@@ -120,6 +117,7 @@ export default class App extends React.Component<{ [key: string]: any }, { [key:
             showDefPeg={this.state.showDefPeg}
           />
         </div>
+        
       </div>
     );
   }
