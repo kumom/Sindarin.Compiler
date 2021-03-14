@@ -1,16 +1,15 @@
 #peg-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  #peg-container {
     width: 100%;
-    #peg-container{
-        width: 100%;
-        height: 100%;
-        .vis-network {
-            overflow: auto;
-        }
+    height: 100%;
+    .vis-network {
+      overflow: auto;
     }
+  }
 }
-
