@@ -14,27 +14,27 @@ export default class EditorPanel extends React.Component<{ [key: string]: any },
   editorRef: any
   deltaDecorations: Object[]
 
-  constructor (props: EditorPanelProps) {
+  constructor(props: EditorPanelProps) {
     super(props)
 
     this.editorRef = React.createRef()
     this.deltaDecorations = []
   }
 
-  componentDidUpdate () : void {
+  componentDidUpdate(): void {
     this.deltaDecorations = this.editorRef.current.deltaDecorations(this.deltaDecorations, [{
       range: this.props.highlightedRange,
       options: { className: 'editorRangeHighlight' }
     }])
   }
 
-  shouldComponentUpdate (nextProps: EditorPanelProps) : boolean {
+  shouldComponentUpdate(nextProps: EditorPanelProps): boolean {
     return nextProps.code !== this.props.code ||
-            nextProps.highlightedRange !== this.props.highlightedRange ||
-            nextProps.language !== this.props.language
+      nextProps.highlightedRange !== this.props.highlightedRange ||
+      nextProps.language !== this.props.language
   }
 
-  render () : JSX.Element {
+  render(): JSX.Element {
     return (
       <div className='panel' id='editor-panel'>
         <MonacoEditor
@@ -50,7 +50,11 @@ export default class EditorPanel extends React.Component<{ [key: string]: any },
             occurrencesHighlight: false,
             selectionHighlight: false,
             codeLens: false,
-            suggestOnTriggerCharacters: false
+            suggestOnTriggerCharacters: false,
+            scrollBeyondLastLine: false,
+            hideCursorInOverviewRuler: true,
+            renderLineHighlightOnlyWhenFocus: true,
+            overviewRulerBorder: false
           }}
           onChange={(newValue, event) => { this.props.updateCode(newValue) }}
           editorDidMount={(editor, monaco) => {
