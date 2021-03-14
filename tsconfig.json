@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "jsx": "react",
     "noFallthroughCasesInSwitch": true,
-    "strict": true
+    "strict": false
   },
   "include": ["./src"],
   "typeRoots": ["./node_modules/@types"],
