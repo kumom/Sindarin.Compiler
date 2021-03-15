@@ -62,9 +62,6 @@ module.exports = {
     resolve: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
     },
-    optimization: {
-        minimize: false,
-    },
     devServer: {
         contentBase: [path.join(__dirname, 'dist')],
         liveReload: true,
