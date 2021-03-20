@@ -140,7 +140,7 @@ function main() {
     requestAnimationFrame(async () => {
         var ide = new IDE();
 
-        await ide.open('/data/typescript/lib/net.ts');
+        await ide.open('/data/typescript/lib/net_with_complications.ts');
         setTimeout(() => nav.gotoClass('Server'), 0); /** @oops can only run after PegPanel 'show' event */
         //setTimeout(() =>
         //    nav.ast.focus(nav.findImports()[0]));

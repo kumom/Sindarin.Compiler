@@ -6,6 +6,7 @@ import Vertex = Hypergraph.Vertex;
 // Not really, but close enough :shrug
 const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;
 const NUMBER_REGEX = /^\d*$/;
+
 export function isScopeName(name: string) {
     return name && VARIABLE_NAME_REGEX.test(name) && !NUMBER_REGEX.test(name) && !Syntax.RESERVED_KEYWORDS.has(name);
 }
@@ -16,11 +17,15 @@ const DEFINITION_LABEL = '__definition__';
 interface ScopeResolutionOptions {
     routeOverrides?: RoutePatternDefinition;
     patternsUnderScope?: PatternDefinition[];
-    excludedScopes?: string[];
+    excludedScopes?: SyntaxToken[];
 }
 
 export function getClosestScopeRouteDefinition(pattern: PatternDefinition, options: ScopeResolutionOptions): RoutePatternDefinition {
-    const {routeOverrides, patternsUnderScope=[], excludedScopes=[]} = options;
+    const {routeOverrides, patternsUnderScope = [], excludedScopes = []} = options;
+    const relevantScopes = !excludedScopes || !excludedScopes.length ? Syntax.SCOPES :
+        Syntax.SCOPES.filter(scopeName => {
+            return excludedScopes.indexOf(scopeName) === -1;
+        });
 
     return {
         firstOnly: true,  // Only choose closest match
@@ -28,11 +33,11 @@ export function getClosestScopeRouteDefinition(pattern: PatternDefinition, optio
         definitions: [
             pattern,  // Start with our expression
             {  // Find all scopes it is defined under
-                labelPred: Syntax.SCOPES,
+                labelPred: relevantScopes,
                 through: "outgoing",
                 modifier: "rtc",
                 resolve: "sources",
-                excluding: [DEFINITION_LABEL, Syntax.PARAMETER, ...excludedScopes],
+                excluding: [DEFINITION_LABEL, "Parameter"],
             },
             ...patternsUnderScope,
         ],
@@ -77,7 +82,7 @@ export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultP
 
     const pattern: RoutePatternDefinition = _getClosestScopeRouteDefinitionForVertex(vertex, {
         // For each scope, find the variables/parameters declared (in this scope only)
-        labelPred: [Syntax.VARIABLE_DECLARATION, Syntax.PARAMETER],
+        labelPred: ["VariableDeclaration", "Parameter"],
         through: "incoming",
         modifier: "rtc",
         excluding: [...Syntax.SCOPES, DEFINITION_LABEL],

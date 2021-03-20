@@ -43,6 +43,6 @@ interface PatternDefinition {
     vertexLabelPat?: LabelPat; // Filter for vertices label
 }
 
-type LabelPat = string | string[] | Set<string> | RegExp | LabelPred
+type LabelPat = SyntaxToken | SyntaxToken[] | Set<SyntaxToken> | RegExp | LabelPred
 type LabelPred = (l: string) => boolean
 type ObjectWithLabel = (obj: { label: string }) => boolean
