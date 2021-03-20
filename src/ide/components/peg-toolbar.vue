@@ -2,6 +2,7 @@
     <div class="toolbar" @click="action">
         <button name="syntax">Syntax</button>
         <button name="semantics">Semantics</button>
+        <button name="pta">PTA</button>
     </div>
 </template>
 

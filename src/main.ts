@@ -3,15 +3,16 @@ import {TypeScriptParser} from './syntax/typescript-ast';
 import {IDE} from './ide/ide';
 
 import {Hypergraph} from './analysis/hypergraph';
-import {HMatcher} from './analysis/pattern';
-import * as SetOps from './infra/setops';
+import {HMatcher, Memento} from './analysis/pattern';
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
-import PatternDefinition = HMatcher.PatternDefinition;
 import {AstPanel} from './ide/panels/ast-panel';
 import {EXPRESSIONS, SCOPES} from "./analysis/syntax";
 import {resolveLexicalScope} from "./analysis/semantics";
+import {performPointsToAnalysis} from "./analysis/pta";
+import {byLabel, HAst} from "./analysis/astUtils";
+import byNodeType = HAst.byNodeType;
 
 
 function semanticAnalysis_C(peg1: Hypergraph) {
@@ -139,23 +140,24 @@ function main() {
     requestAnimationFrame(async () => {
         var ide = new IDE();
 
-        await ide.open('/data/typescript/lib/net.ts');
-        setTimeout(() => nav.gotoMethod('listen'), 0); /** @oops can only run after PegPanel 'show' event */
+        await ide.open('/data/typescript/lib/net_with_complications.ts');
+        setTimeout(() => nav.gotoClass('Server'), 0); /** @oops can only run after PegPanel 'show' event */
         //setTimeout(() =>
         //    nav.ast.focus(nav.findImports()[0]));
 
         //await ide.open('/data/c/bincnt.c');
         ide.parse(parser);
-        var semanticAnalysis = semanticAnalysis_TS;
+        const semanticAnalysis = semanticAnalysis_TS;
 
         //ide.panels.ast.hide();
 
-        var peg1: Hypergraph, peg2: Hypergraph,
+        let peg1: Hypergraph, peg2: Hypergraph, peg3: Hypergraph,
             nav: SourceNavigator;
 
         function syntax() {
             peg1 = new Hypergraph().fromAst(ide.panels.ast.focused);
             peg2 = undefined;
+            peg3 = undefined;
             ide.panels.peg.show(peg1);
             Object.assign(window, {peg1, m: new HMatcher(peg1), H: HMatcher});
         }
@@ -165,6 +167,14 @@ function main() {
                 peg2 = semanticAnalysis(peg1);
                 ide.panels.peg.overlay(peg2);
                 Object.assign(window, {peg2});
+            }
+        }
+
+        function pta() {
+            if (!peg3) {
+                peg3 = performPointsToAnalysis(peg1);
+                ide.panels.peg.overlay(peg3);
+                Object.assign(window, {peg3});
             }
         }
 
@@ -188,6 +198,9 @@ function main() {
                 case 'semantics':
                     semantics();
                     break;
+                case 'pta':
+                    pta();
+                    break;
             }
         }
 
@@ -200,7 +213,7 @@ function main() {
 }
 
 
-const ID = HMatcher.Ast.byNodeType('Identifier');
+const ID = byNodeType('Identifier');
 
 class SourceNavigator {
     ast: AstPanel
@@ -221,12 +234,21 @@ class SourceNavigator {
     }
 
     gotoDecl(declType: string, name: string) {
-        var m = new HMatcher(this.peg), mm = new HMatcher.Memento,
+        var m = new HMatcher(this.peg),
+            mm = new Memento,
             res = [];
-        mm.e('e')(m.l(declType)).s(ID(HMatcher.byLabel(name)(() => {
+
+        mm.e('e')(m.l(declType)).s(ID(byLabel(name)(() => {
             res.push(mm.edges['e'].target.data.ast);
         })));
-        if (res[0]) this.ast.focus(res[0]);
+
+        const declTree = res[0];
+        if (!declTree)
+        {
+            return;
+        }
+
+        this.ast.focus(declTree);
     }
 
     gotoClass(name: string) {

@@ -1,31 +1,72 @@
 import {Hypergraph} from "./hypergraph";
 import {HMatcher} from "./pattern";
-import RoutePatternDefinition = HMatcher.RoutePatternDefinition;
-import {SCOPES, VARIABLE_DECLARATION, PARAMETER} from "./syntax";
+import * as Syntax from "./syntax";
 import Vertex = Hypergraph.Vertex;
-import PatternDefinition = HMatcher.PatternDefinition;
 
 // Not really, but close enough :shrug
 const VARIABLE_NAME_REGEX = /^[a-z_][a-z\d_]*$/i;
+const NUMBER_REGEX = /^\d*$/;
 
-const DEFINITION_LABEL = 'DEFINITION';
+export function isScopeName(name: string) {
+    return name && VARIABLE_NAME_REGEX.test(name) && !NUMBER_REGEX.test(name) && !Syntax.RESERVED_KEYWORDS.has(name);
+}
 
 
-function _getClosestScopePatternDefinitionss<VData>(vertex: Vertex<VData>): PatternDefinition[] {
+const DEFINITION_LABEL = '__definition__';
+
+interface ScopeResolutionOptions {
+    routeOverrides?: RoutePatternDefinition;
+    patternsUnderScope?: PatternDefinition[];
+    excludedScopes?: SyntaxToken[];
+}
+
+export function getClosestScopeRouteDefinition(pattern: PatternDefinition, options: ScopeResolutionOptions): RoutePatternDefinition {
+    const {routeOverrides, patternsUnderScope = [], excludedScopes = []} = options;
+    const relevantScopes = !excludedScopes || !excludedScopes.length ? Syntax.SCOPES :
+        Syntax.SCOPES.filter(scopeName => {
+            return excludedScopes.indexOf(scopeName) === -1;
+        });
+
+    return {
+        firstOnly: true,  // Only choose closest match
+        unreflexive: true,
+        definitions: [
+            pattern,  // Start with our expression
+            {  // Find all scopes it is defined under
+                labelPred: relevantScopes,
+                through: "outgoing",
+                modifier: "rtc",
+                resolve: "sources",
+                excluding: [DEFINITION_LABEL, "Parameter"],
+            },
+            ...patternsUnderScope,
+        ],
+        ...routeOverrides,
+    };
+}
+
+export function getClosestScopeNameRouteDefinition(pattern: PatternDefinition, options?: ScopeResolutionOptions): RoutePatternDefinition {
+    if (options && options.patternsUnderScope) {
+        throw new Error("Can't specify patterns under scope in this case");
+    }
+
+    return getClosestScopeRouteDefinition(pattern, {
+        ...options,
+        patternsUnderScope: [{
+            index: 0,
+            labelPred: isScopeName,
+        }]
+    })
+}
+
+function _getClosestScopeRouteDefinitionForVertex<VData>(vertex: Vertex<VData>, ...patternsUnderScope: PatternDefinition[]): RoutePatternDefinition {
     const {label} = vertex;
-
-    return [
-        {   // Start with our vertex
-            vertex,
-            vertexLabelPat: label,
-        },
-        {   // Find all scopes it is defined under
-            labelPred: SCOPES,
-            through: "outgoing",
-            modifier: "rtc",
-            excluding: [DEFINITION_LABEL, VARIABLE_DECLARATION, PARAMETER],
-        },
-    ];
+    return getClosestScopeRouteDefinition({
+        vertex,
+        vertexLabelPat: label,
+    }, {
+        patternsUnderScope,
+    });
 }
 
 export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultPeg: Hypergraph<VData>, vertex: Vertex<VData>): boolean {
@@ -39,21 +80,14 @@ export function resolveLexicalScope<VData>(sourcePeg: Hypergraph<VData>, resultP
         return false;
     }
 
-    const closestScopePatternDefinitions = _getClosestScopePatternDefinitionss(vertex);
-    const pattern: RoutePatternDefinition = {
-        firstOnly: true,  // Only choose closest match
-        definitions: [
-            ...closestScopePatternDefinitions,
-            {   // For each scope, find the variables/parameters declared (in this scope only)
-                labelPred: [VARIABLE_DECLARATION, PARAMETER],
-                through: "incoming",
-                modifier: "rtc",
-                excluding: [...SCOPES, DEFINITION_LABEL],
-                vertexLabelPat: label,
-            },
-        ],
-    }
-
+    const pattern: RoutePatternDefinition = _getClosestScopeRouteDefinitionForVertex(vertex, {
+        // For each scope, find the variables/parameters declared (in this scope only)
+        labelPred: ["VariableDeclaration", "Parameter"],
+        through: "incoming",
+        modifier: "rtc",
+        excluding: [...Syntax.SCOPES, DEFINITION_LABEL],
+        vertexLabelPat: label,
+    });
 
     m.resolvePatternDefinitions(pattern, (route) => {
         const [use, ...rest] = route;
