@@ -1,5 +1,4 @@
 import moo from "moo";
-
 import { Parser, SkippingLexer } from "./parser";
 
 const IDENTIFIER = /[_a-zA-Z][_a-zA-Z0-9]*/;

@@ -1,5 +1,6 @@
 import moo from "moo";
 import nearley from "nearley";
+import LineAndColumnComputer from "./LineAndColumnComputer";
 
 class SkippingLexer implements nearley.Lexer {
   lexer: moo.Lexer;
@@ -33,6 +34,7 @@ class SkippingLexer implements nearley.Lexer {
 
 class Parser extends nearley.Parser {
   initial: any;
+  #LineAndColumnComputer: LineAndColumnComputer;
 
   constructor(grammar: any) {
     super(Parser.prepare(grammar));
@@ -52,11 +54,14 @@ class Parser extends nearley.Parser {
   }
 
   parse(program: string) {
+    this.#LineAndColumnComputer = new LineAndColumnComputer(program);
     this.restart();
     this.feed(program);
+    const ast = this.results[0];
+    this.setRange(ast);
     // For non-ambigious grammar, this is what we what
     // See: https://nearley.js.org/docs/parser#a-note-on-ambiguity
-    return this.results[0];
+    return ast;
   }
 
   restart() {
@@ -65,6 +70,34 @@ class Parser extends nearley.Parser {
 
   reportError(token: any) {
     return this.lexer.formatError(token, "Syntax error");
+  }
+
+  private setRange(ast): void {
+    if (ast.text) {
+      const start = this.#LineAndColumnComputer.getNumberAndColumnFromPos(
+        ast.offset
+      );
+      const end = this.#LineAndColumnComputer.getNumberAndColumnFromPos(
+        ast.offset + ast.text.length
+      );
+      ast.range = {
+        startLineNumber: start.lineNumber,
+        startColumn: start.column,
+        endLineNumber: end.lineNumber,
+        endColumn: end.column,
+      };
+    } else {
+      for (let i = 0; i < ast.length; i++) this.setRange(ast[i]);
+
+      const firstChild = ast[0],
+        lastChild = ast[ast.length - 1];
+      ast.range = {
+        startLineNumber: firstChild.range.startLineNumber,
+        startColumn: firstChild.range.startColumn,
+        endLineNumber: lastChild.range.endLineNumber,
+        endColumn: lastChild.range.endColumn,
+      };
+    }
   }
 
   static unfold(data: any[], type: string) {
