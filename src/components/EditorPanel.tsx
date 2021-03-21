@@ -1,12 +1,12 @@
 import React from "react";
 import MonacoEditor from "react-monaco-editor";
 import "./EditorPanel.scss";
-import { CodeRange } from "../syntax/parser";
+import { Ast, CodeRange } from "../syntax/parser";
 
 interface EditorPanelProps {
   code: string;
   language: string;
-  highlightedRange: CodeRange;
+  highlighted: Ast;
   updateCode: (code: string) => void;
 }
 
@@ -25,11 +25,20 @@ export default class EditorPanel extends React.Component<
   }
 
   componentDidUpdate(): void {
+    let highlightedRange = {
+      startLineNumber: 0,
+      startColumn: 0,
+      endLineNumber: 0,
+      endColumn: 0,
+    };
+    if (this.props.highlighted && this.props.highlighted.range)
+      highlightedRange = this.props.highlighted.range;
+
     this.deltaDecorations = this.editorRef.current.deltaDecorations(
       this.deltaDecorations,
       [
         {
-          range: this.props.highlightedRange,
+          range: highlightedRange,
           options: { className: "editorRangeHighlight" },
         },
       ]
@@ -39,7 +48,7 @@ export default class EditorPanel extends React.Component<
   shouldComponentUpdate(nextProps: EditorPanelProps): boolean {
     return (
       nextProps.code !== this.props.code ||
-      nextProps.highlightedRange !== this.props.highlightedRange ||
+      nextProps.highlighted !== this.props.highlighted ||
       nextProps.language !== this.props.language
     );
   }

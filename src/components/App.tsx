@@ -6,7 +6,7 @@ import EditorPanel from "./EditorPanel";
 import Toolbar from "./Toolbar";
 import AstPanel from "./AstPanel";
 import PegPanel from "./PegPanel";
-import { CodeRange } from "../syntax/parser";
+import { Ast, CodeRange } from "../syntax/parser";
 
 export default class App extends React.Component<
   { [key: string]: any },
@@ -17,23 +17,18 @@ export default class App extends React.Component<
     this.updateLanguage = this.updateLanguage.bind(this);
     this.updatePegsVisibility = this.updatePegsVisibility.bind(this);
     this.updateCode = this.updateCode.bind(this);
-    this.updateHighlightedRange = this.updateHighlightedRange.bind(this);
+    this.updateHighlighted = this.updateHighlighted.bind(this);
 
     this.state = {
+      ast: null,
+      code: "",
+      entry: "",
+      filename: "",
+      highlighted: null,
       language: "",
+      parseErrorMsg: "",
       parser: null,
       seman: null,
-      filename: "",
-      entry: "",
-      code: "",
-      ast: null,
-      parseErrorMsg: "",
-      highlightedRange: {
-        startLineNumber: 0,
-        startColumn: 0,
-        endLineNumber: 0,
-        endColumn: 0,
-      },
       showDefPeg: false,
     };
   }
@@ -46,25 +41,20 @@ export default class App extends React.Component<
     this.setState({ code });
     try {
       const ast = this.state.parser.parse(code);
-      this.setState({ ast, parseErrorMsg: "" });
+      this.setState({ ast, parseErrorMsg: "", shownAst: ast });
     } catch (e) {
-      this.setState({ ast: null, parseErrorMsg: e.toString() });
+      this.setState({ ast: null, parseErrorMsg: e.toString(), shownAst: null });
     }
 
-    this.updateHighlightedRange();
+    this.updateHighlighted();
   }
 
-  updateHighlightedRange(highlightedRange?: CodeRange) {
-    if (highlightedRange != null) {
-      this.setState({ highlightedRange });
+  updateHighlighted(ast?: Ast) {
+    if (ast) {
+      this.setState({ highlighted: ast });
     } else {
       this.setState({
-        highlightedRange: {
-          startLineNumber: 0,
-          startColumn: 0,
-          endLineNumber: 0,
-          endColumn: 0,
-        },
+        highlighted: null,
       });
     }
   }
@@ -98,21 +88,22 @@ export default class App extends React.Component<
         <div id="panel-wrapper">
           <EditorPanel
             code={this.state.code}
+            highlighted={this.state.highlighted}
             language={this.state.language}
-            highlightedRange={this.state.highlightedRange}
             updateCode={this.updateCode}
           />
           <Resizer />
           <AstPanel
-            parseErrorMsg={this.state.parseErrorMsg}
             ast={this.state.ast}
-            highlightedRange={this.state.highlightedRange}
-            updateHighlightedRange={this.updateHighlightedRange}
+            highlighted={this.state.highlighted}
+            parseErrorMsg={this.state.parseErrorMsg}
+            updateHighlighted={this.updateHighlighted}
           />
           <Resizer />
           <PegPanel
-            language={this.state.language}
             ast={this.state.ast}
+            language={this.state.language}
+            highlighted={this.state.highlighted}
             seman={this.state.seman}
             showDefPeg={this.state.showDefPeg}
           />

@@ -57,11 +57,11 @@ class Parser extends nearley.Parser {
     this.#LineAndColumnComputer = new LineAndColumnComputer(program);
     this.restart();
     this.feed(program);
-    const ast = this.results[0];
-    this.setRange(ast);
     // For non-ambigious grammar, this is what we what
     // See: https://nearley.js.org/docs/parser#a-note-on-ambiguity
-    return ast;
+    const ast = this.results[0];
+    this.setRange(ast);
+    return this.toTree(ast);
   }
 
   restart() {
@@ -70,6 +70,23 @@ class Parser extends nearley.Parser {
 
   reportError(token: any) {
     return this.lexer.formatError(token, "Syntax error");
+  }
+
+  private toTree(ast) {
+    if (ast.text) {
+      return {
+        type: ast.type,
+        text: ast.text,
+        children: null,
+        range: ast.range,
+      };
+    } else {
+      let tree = { type: ast.type, range: ast.range, children: [] };
+      for (let i = 0; i < ast.length; i++)
+        tree.children.push(this.toTree(ast[i]));
+
+      return tree;
+    }
   }
 
   private setRange(ast): void {
@@ -111,8 +128,12 @@ class Parser extends nearley.Parser {
   }
 }
 
-type Ast = { type: string; range?: CodeRange } & (Ast[] | { text: string });
-export type { Ast };
+export type Ast = {
+  type: string;
+  children: Ast[];
+  range?: CodeRange;
+  text?: string;
+};
 
 export interface CodeRange {
   startLineNumber: number;

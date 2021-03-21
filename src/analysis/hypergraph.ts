@@ -84,10 +84,14 @@ class Hypergraph<VData = any> {
     function aux(ast: Ast) {
       var root = ++c,
         u = self._get(root);
-      if (Array.isArray(ast)) {
-        var subs = ast.map(aux);
+      // @ts-ignore
+      if (ast.children) {
+        // @ts-ignore
+
+        var subs = ast.children.map(aux);
         self.add([{ label: ast.type || "", sources: subs, target: root }]);
       } else {
+        // @ts-ignore
         u.label = ast.text;
       }
       u.data = (<any>{ ast }) as VData; /** @oops */

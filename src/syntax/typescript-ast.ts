@@ -35,16 +35,18 @@ class TypeScriptParser {
         text: u.getText(src),
         range: this.getRange(u),
         _ts: u,
+        children: null,
       };
     } else {
       var children: any = u
         .getChildren(src)
         .map((s) => this.postprocessAst(s, src));
-      return Object.assign(children, {
+      return {
         type: kind,
         _ts: u,
         range: this.getRange(u),
-      });
+        children,
+      };
     }
   }
 

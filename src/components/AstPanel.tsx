@@ -5,21 +5,9 @@ import { CodeRange } from "../syntax/parser";
 
 interface AstPanelProps {
   ast: Ast | null;
+  highlighted: Ast;
   parseErrorMsg: string;
-  highlightedRange: CodeRange;
-  updateHighlightedRange: (range?: CodeRange) => void;
-}
-
-type Tree = InnerNode | Leaf;
-interface InnerNode {
-  type: string;
-  children: Tree[];
-  range?: CodeRange;
-}
-interface Leaf {
-  type: string;
-  text: string;
-  range?: CodeRange;
+  updateHighlighted: (range?: CodeRange) => void;
 }
 
 export default class AstPanel extends React.Component<
@@ -28,39 +16,17 @@ export default class AstPanel extends React.Component<
 > {
   constructor(props: AstPanelProps) {
     super(props);
-    this.state = {
-      tree: null,
-    };
-  }
-
-  static toTree(ast: Ast): Tree | null {
-    if (!Array.isArray(ast)) {
-      return { type: ast.type, text: ast.text, range: ast.range };
-    } else {
-      return {
-        type: ast.type,
-        children: ast.map((t) => AstPanel.toTree(t)) as Tree[],
-        range: ast.range,
-      };
-    }
-  }
-
-  static getDerivedStateFromProps(
-    nextProps: AstPanelProps
-  ): { tree: Tree | null } {
-    if (nextProps.ast) return { tree: AstPanel.toTree(nextProps.ast) };
-    else return { tree: null };
   }
 
   render(): JSX.Element {
     return (
       <div className="panel" id="ast-panel">
-        {this.state.tree ? (
+        {this.props.ast ? (
           <TreeView
-            tree={this.state.tree}
+            tree={this.props.ast}
             depth={0}
-            highlightedRange={this.props.highlightedRange}
-            updateHighlightedRange={this.props.updateHighlightedRange}
+            highlighted={this.props.highlighted}
+            updateHighlighted={this.props.updateHighlighted}
           />
         ) : null}
         <div
@@ -74,10 +40,10 @@ export default class AstPanel extends React.Component<
 }
 
 function TreeView(props: {
-  tree: Tree;
+  tree: Ast;
   depth: number;
-  highlightedRange: CodeRange;
-  updateHighlightedRange: (range?: CodeRange) => void;
+  highlighted: Ast;
+  updateHighlighted: (ast?: Ast) => void;
 }): JSX.Element {
   const [expanded, setExpanded] = useState(true);
 
@@ -94,8 +60,7 @@ function TreeView(props: {
           }}
           style={{
             visibility:
-              (props.tree as InnerNode).children &&
-              (props.tree as InnerNode).children.length >= 1
+              props.tree.children && props.tree.children.length >= 1
                 ? "visible"
                 : "hidden",
             textAlign: "center",
@@ -105,25 +70,23 @@ function TreeView(props: {
         <span
           className={props.tree.range != null ? "node hoverable" : "node"}
           style={{
-            filter:
-              props.tree.range === props.highlightedRange
-                ? "invert(50%)"
-                : "none",
+            filter: props.tree === props.highlighted ? "invert(50%)" : "none",
           }}
           onClick={() => {
             if (props.tree.range == null) return;
-            props.updateHighlightedRange(props.tree.range);
+            if (props.tree === props.highlighted) props.updateHighlighted();
+            else props.updateHighlighted(props.tree);
           }}>
           {props.tree.type}
         </span>
-        {Array.isArray((props.tree as InnerNode).children)
-          ? (props.tree as InnerNode).children.map((child: Tree, i: number) => (
+        {props.tree.children && props.tree.children.length
+          ? props.tree.children.map((child: Ast, i: number) => (
               <div style={{ display: expanded ? "block" : "none" }} key={i}>
                 <TreeView
                   tree={child}
                   depth={props.depth + 1}
-                  highlightedRange={props.highlightedRange}
-                  updateHighlightedRange={props.updateHighlightedRange}
+                  highlighted={props.highlighted}
+                  updateHighlighted={props.updateHighlighted}
                 />
               </div>
             ))

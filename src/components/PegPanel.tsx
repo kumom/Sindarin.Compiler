@@ -7,17 +7,18 @@ import "./PegPanel.scss";
 import "vis-network/styles/vis-network.css";
 
 interface PegPanelProps {
-  language: string;
   ast: Ast;
+  highlighted: Ast;
+  language: string;
   seman: (peg: Hypergraph) => Hypergraph;
   showDefPeg: boolean;
 }
 
 interface PegPanelState {
-  syntaxPeg: Hypergraph | null;
   defPeg: Hypergraph | null;
-  view: any;
   numVertices: number;
+  syntaxPeg: Hypergraph | null;
+  view: any;
 }
 
 export default class PegPanel extends React.Component<
@@ -36,10 +37,10 @@ export default class PegPanel extends React.Component<
     this.viewRef = React.createRef();
 
     this.state = {
-      syntaxPeg: null,
       defPeg: null,
-      view: null,
       numVertices: 0,
+      syntaxPeg: null,
+      view: null,
     };
   }
 
@@ -84,6 +85,7 @@ export default class PegPanel extends React.Component<
   ): boolean {
     return (
       nextProps.ast !== this.props.ast ||
+      nextProps.highlighted !== this.props.highlighted ||
       nextProps.language !== this.props.language ||
       nextProps.showDefPeg !== this.props.showDefPeg ||
       nextState.numVertices !== this.state.numVertices
@@ -91,7 +93,8 @@ export default class PegPanel extends React.Component<
   }
 
   componentDidUpdate(): void {
-    if (this.props.ast) {
+    if (this.props.highlighted) this.init(this.props.highlighted);
+    else if (this.props.ast) {
       this.init(this.props.ast);
     } else {
       this.clearCanvas();
