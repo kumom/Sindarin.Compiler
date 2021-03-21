@@ -1,64 +1,57 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import MonacoEditor from "react-monaco-editor";
 import "./EditorPanel.scss";
-import { Ast, CodeRange } from "../syntax/parser";
+import { Ast } from "../syntax/parser";
+import { FadeLoader } from "react-spinners";
 
 interface EditorPanelProps {
   code: string;
   language: string;
   highlighted: Ast;
-  updateCode: (code: string) => void;
+  setCode: (code: string) => void;
 }
 
-export default class EditorPanel extends React.Component<
-  { [key: string]: any },
-  { [key: string]: any }
-> {
-  editorRef: any;
-  deltaDecorations: Object[];
+export default function EditorPanel(props: EditorPanelProps) {
+  let editor = useRef(null);
+  const [deltaDecorations, setDeltaDecorations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const unhighlightedRange = {
+    startLineNumber: 0,
+    startColumn: 0,
+    endLineNumber: 0,
+    endColumn: 0,
+  };
+  const [highlightedRange, setHighlightedRange] = useState(unhighlightedRange);
 
-  constructor(props: EditorPanelProps) {
-    super(props);
+  useEffect(() => {
+    if (!editor.current) return;
 
-    this.editorRef = React.createRef();
-    this.deltaDecorations = [];
-  }
+    if (props.highlighted && props.highlighted.range)
+      setHighlightedRange(props.highlighted.range);
+    else setHighlightedRange(unhighlightedRange);
+  }, [props.code, props.highlighted]);
 
-  componentDidUpdate(): void {
-    let highlightedRange = {
-      startLineNumber: 0,
-      startColumn: 0,
-      endLineNumber: 0,
-      endColumn: 0,
-    };
-    if (this.props.highlighted && this.props.highlighted.range)
-      highlightedRange = this.props.highlighted.range;
-
-    this.deltaDecorations = this.editorRef.current.deltaDecorations(
-      this.deltaDecorations,
-      [
+  useEffect(() => {
+    setDeltaDecorations(
+      editor.current.deltaDecorations(deltaDecorations, [
         {
           range: highlightedRange,
           options: { className: "editorRangeHighlight" },
         },
-      ]
+      ])
     );
-  }
+  }, [highlightedRange]);
 
-  shouldComponentUpdate(nextProps: EditorPanelProps): boolean {
-    return (
-      nextProps.code !== this.props.code ||
-      nextProps.highlighted !== this.props.highlighted ||
-      nextProps.language !== this.props.language
-    );
-  }
-
-  render(): JSX.Element {
-    return (
-      <div className="panel" id="editor-panel">
+  return (
+    <div className="panel">
+      <FadeLoader
+        loading={loading}
+        css="position: absolute; top: 50%; left: 50%;"
+      />
+      <div id="editor-panel" style={{ display: loading ? "none" : "block" }}>
         <MonacoEditor
-          language={this.props.language.toLowerCase()}
-          value={this.props.code}
+          language={props.language.toLowerCase()}
+          value={props.code}
           theme="vs"
           options={{
             minimap: {
@@ -75,17 +68,21 @@ export default class EditorPanel extends React.Component<
             renderLineHighlightOnlyWhenFocus: true,
             overviewRulerBorder: false,
           }}
-          onChange={(newValue, event) => {
-            this.props.updateCode(newValue);
+          onChange={(newValue) => {
+            props.setCode(newValue);
           }}
-          editorDidMount={(editor, monaco) => {
-            this.editorRef.current = editor;
-            editor.onDidChangeModelContent((event) => {
-              editor.setPosition({ lineNumber: 1, column: 1 });
+          editorDidMount={(monacoEditor) => {
+            editor.current = monacoEditor;
+            monacoEditor.onDidChangeModelContent(() => {
+              setLoading(false);
+              monacoEditor.setPosition({ lineNumber: 1, column: 1 });
+            });
+            monacoEditor.onDidChangeModelLanguage(() => {
+              setLoading(true);
             });
           }}
         />
       </div>
-    );
-  }
+    </div>
+  );
 }

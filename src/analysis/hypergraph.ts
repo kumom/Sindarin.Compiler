@@ -1,7 +1,7 @@
 import { v1 as uuidv1 } from "uuid";
 import { Node, Edge, Options, Network, IdType } from "vis-network";
 import { DataSet } from "vis-data";
-import type { Ast } from "../syntax/parser";
+import { Ast } from "../syntax/parser";
 
 class Hypergraph<VData = any> {
   vertices: Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>> = new Map();
@@ -102,7 +102,7 @@ class Hypergraph<VData = any> {
     return this;
   }
 
-  _get(id: Hypergraph.VertexId) {
+  private _get(id: Hypergraph.VertexId) {
     var v = this.vertices.get(id);
     if (!v) {
       v = new Hypergraph.Vertex(id);
@@ -111,20 +111,22 @@ class Hypergraph<VData = any> {
     return v;
   }
 
-  _fresh() {
+  private _fresh() {
     var u = new Hypergraph.Vertex(++this._max);
     this.vertices.set(u.id, u);
     return u;
   }
 
   toVis(edgeNodeProfile = null) {
-    var nodes = new DataSet<Node>(
+    var nodes = new DataSet<CustomizedNode>(
       [...this.vertices.values()].map((u) => {
         return {
           id: u.id,
+          innerNode: false,
           label: u.label || `${u.id}`,
           shape: "box",
-          ...(u.label ? LIT : {}),
+          token: u.label ? true : false,
+          ...(u.label ? LIT : DUMMY),
         };
       })
     );
@@ -143,6 +145,11 @@ class Hypergraph<VData = any> {
       edges: edges,
     });
   }
+}
+
+interface CustomizedNode extends Node {
+  token: boolean;
+  innerNode: boolean;
 }
 
 namespace Hypergraph {
@@ -175,14 +182,20 @@ namespace Hypergraph {
       edgeNodeProfile = edgeNodeProfile || NUCLEUS;
 
       var nucleus = uuidv1(),
-        nodes: Node[] = [
-          { id: nucleus, label: this.label, ...edgeNodeProfile },
+        nodes: CustomizedNode[] = [
+          {
+            id: nucleus,
+            label: this.label,
+            ...edgeNodeProfile,
+            token: false,
+            innerNode: true,
+          },
         ],
         edges: Edge[] = [
           // @ts-ignore
-          { from: nucleus, to: this.target.id, ...TO },
+          { from: nucleus, to: this.target.id, ...EDGE },
           // @ts-ignore
-          ...this.sources.map((v) => ({ from: v.id, to: nucleus, ...FROM })),
+          ...this.sources.map((v) => ({ from: v.id, to: nucleus, ...EDGE })),
         ];
       return { nodes, edges };
     }
@@ -199,18 +212,26 @@ const NUCLEUS = {
     shape: "box",
     color: "#cca",
     shapeProperties: { borderRadius: 99 },
+    font: { color: "#212121" },
+    opacity: 1,
   },
-  TO = {
+  EDGE = {
     arrows: { to: { enabled: true, scaleFactor: 0.5 } },
     color: "#997",
     length: 1,
   },
-  FROM = {
-    arrows: { middle: { enabled: true, scaleFactor: 0.5 } },
-    color: "#997",
-    length: 1,
+  DUMMY = {
+    color: "#7bb2e8",
+    shapeProperties: { borderRadius: 5 },
+    font: { color: "#212121" },
+    opacity: 1,
   },
-  LIT = { color: "#9d9", shapeProperties: { borderRadius: 0 } },
+  LIT = {
+    color: "#9d9",
+    shapeProperties: { borderRadius: 0 },
+    font: { color: "#212121" },
+    opacity: 1,
+  },
   FAINT = {
     color: {
       background: "#ddd",
@@ -254,6 +275,8 @@ interface VisSelectionEventArgs extends VisSelection {
 class HypergraphView {
   peg: Hypergraph;
   data: HypergraphView.Data;
+  basePeg: Hypergraph;
+  baseData: HypergraphView.Data;
 
   options: Options = {
     layout: {
@@ -269,12 +292,15 @@ class HypergraphView {
 
   constructor(peg: Hypergraph, data: HypergraphView.Data) {
     this.peg = peg;
+    this.basePeg = peg;
     this.data = data;
+    this.baseData = data;
     if (this.data.options) this.options = this.data.options;
   }
 
-  render(on: HTMLElement) {
+  render(on: HTMLElement, callback?) {
     this.network = new Network(on, this.data, this.options);
+    this.network.on("stabilizationIterationsDone", callback);
 
     // TODO: off
     this.network.on("selectNode", this._onNodeSelected.bind(this));
@@ -311,7 +337,9 @@ class HypergraphView {
 
   merge(that: HypergraphView) {
     that.data.nodes.forEach((u) => {
-      if (!this.data.nodes.get(u.id)) this.data.nodes.add(u);
+      if (!this.data.nodes.get(u.id)) {
+        this.data.nodes.add(u);
+      }
     });
     that.data.edges.forEach((e) => {
       this.data.edges.add(e);
@@ -363,7 +391,7 @@ class HypergraphView {
 
   get _nodes() {
     /** @oops */
-    return (<any>this.network).body.nodes as { [id: string]: Node };
+    return (<any>this.network).body.nodes as { [id: string]: CustomizedNode };
   }
 
   get _edges() {
@@ -371,7 +399,7 @@ class HypergraphView {
     return (<any>this.network).body.edges as { [id: string]: Edge };
   }
 
-  _drawingContext() {
+  private _drawingContext() {
     var r = (<any>this.network).view,
       ctx = r.canvas.getContext();
     ctx.translate(r.body.view.translation.x, r.body.view.translation.y);
@@ -386,7 +414,7 @@ class HypergraphView {
    * @oops this is using internal APIs and monkey-patching because the
    *   EdgeType class hierarchy is not exposed.
    */
-  _shortenEdge(e: Edge) {
+  private _shortenEdge(e: Edge) {
     var shape = (<any>e).edgeType; /** @oops internal API */
     if (shape.constructor.name === "StraightEdge") {
       shape._drawLine = function (ctx: CanvasRenderingContext2D, val) {
@@ -412,18 +440,40 @@ class HypergraphView {
     /** @todo not handling non-straight edges atm */
   }
 
-  overlay(peg: Hypergraph, disableBase = true, edgeNodeProfile = null) {
-    const overlayView = peg.toVis(edgeNodeProfile);
+  overlay(overlayView: HypergraphView, disableBase = true) {
     this.nail();
 
     if (disableBase) {
       this.fade();
     }
 
-    setTimeout(() => this.merge(overlayView), 1);
+    this.merge(overlayView);
   }
 
-  _onNodeSelected({ nodes }: VisSelectionEventArgs) {
+  removeOverlay(overlayView: HypergraphView) {
+    this.nail();
+
+    overlayView.data.nodes.forEach((u) => {
+      this.data.nodes.remove(u);
+    });
+    overlayView.data.edges.forEach((e) => {
+      this.data.edges.remove(e);
+    });
+
+    // Restore to the original view
+    this.baseData.nodes.update(
+      this.baseData.nodes.map((node) => {
+        if (node.token) return { id: node.id, ...LIT };
+        else if (node.innerNode) return { id: node.id, ...NUCLEUS };
+        else return { id: node.id, ...DUMMY };
+      })
+    );
+    this.baseData.edges.update(
+      this.baseData.edges.getIds().map((id) => ({ id, ...EDGE }))
+    );
+  }
+
+  private _onNodeSelected({ nodes }: VisSelectionEventArgs) {
     // if (nodes.length !== 1) {
     //     throw new Error("Umm... not yet :-)")
     // }
@@ -441,12 +491,12 @@ class HypergraphView {
     // this.overlay(scopeResolutionPeg, false, {shape: 'box', color: '#ca2340', shapeProperties: {borderRadius: 99}});
   }
 
-  _onNodeDeselected({ previousSelection }: VisSelectionEventArgs) {}
+  private _onNodeDeselected({ previousSelection }: VisSelectionEventArgs) {}
 }
 
 namespace HypergraphView {
   export type Data = {
-    nodes: DataSet<Node, "id">;
+    nodes: DataSet<CustomizedNode, "id">;
     edges: DataSet<Edge, "id">;
     options?: Options /* not strictly part of the data, but returned from e.g. parseDOTNetwork */;
   };

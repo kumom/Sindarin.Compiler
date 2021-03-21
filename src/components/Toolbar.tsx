@@ -4,8 +4,8 @@ import "./Toolbar.scss";
 export default function Toolbar(props: {
   allLanguages: string[];
   language: string;
-  updateLanguage: (language: string) => void;
-  updatePegsVisibility: (showDefPeg: boolean) => void;
+  setLanguage: (language: string) => void;
+  setShowDefPeg: (showDefPeg: boolean) => void;
 }): JSX.Element {
   return (
     <div id="toolbar">
@@ -14,8 +14,9 @@ export default function Toolbar(props: {
         <select
           name="languages"
           id="languages"
+          value={props.language}
           onChange={(event) => {
-            props.updateLanguage(event.target.value);
+            props.setLanguage(event.target.value);
           }}>
           {props.allLanguages.map((language, index) => (
             <option key={index} value={language}>
@@ -33,7 +34,7 @@ export default function Toolbar(props: {
           name="peg-type"
           value="def-peg"
           onChange={(event) => {
-            props.updatePegsVisibility(event.target.checked);
+            props.setShowDefPeg(event.target.checked);
           }}
         />
         <label>Definition PEG</label>

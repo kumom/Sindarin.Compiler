@@ -39,7 +39,8 @@ module.exports = {
                                 "forceAllTransforms": true
                             }],
                             "@babel/preset-react"
-                        ]
+                        ],
+                        plugins: ["@emotion"]
                     }
                 },
             },

@@ -5,10 +5,6 @@ import { HMatcher } from "./analysis/pattern";
 import { EXPRESSIONS } from "./analysis/syntax";
 import { resolveLexicalScope } from "./analysis/semantics";
 
-import React from "react";
-import ReactDOM from "react-dom";
-import App from "./components/App";
-
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
@@ -164,5 +160,9 @@ const config = {
     entry: "addListener",
   },
 };
+
+import React from "react";
+import ReactDOM from "react-dom";
+import App from "./components/App";
 
 ReactDOM.render(<App config={config} />, document.getElementById("app"));

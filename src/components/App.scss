@@ -26,6 +26,7 @@ body,
     justify-content: space-between;
 
     .panel {
+      position: relative;
       width: 33.33%;
       flex-grow: 1;
       height: 100%;

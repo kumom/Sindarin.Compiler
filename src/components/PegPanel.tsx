@@ -1,7 +1,7 @@
-import React from "react";
-import { HMatcher } from "../analysis/pattern";
+import React, { useEffect, useRef, useState } from "react";
 import { Hypergraph } from "../analysis/hypergraph";
-import type { Ast } from "../syntax/parser";
+import { Ast } from "../syntax/parser";
+import { FadeLoader } from "react-spinners";
 
 import "./PegPanel.scss";
 import "vis-network/styles/vis-network.css";
@@ -14,118 +14,93 @@ interface PegPanelProps {
   showDefPeg: boolean;
 }
 
-interface PegPanelState {
-  defPeg: Hypergraph | null;
-  numVertices: number;
-  syntaxPeg: Hypergraph | null;
-  view: any;
-}
+export default function PegPanel(props: PegPanelProps) {
+  const sizeThreshold = 600;
+  const viewRef = useRef(null);
 
-export default class PegPanel extends React.Component<
-  { [key: string]: any },
-  { [key: string]: any }
-> {
-  sizeThreshold: number;
-  ID: any;
-  viewRef: any;
+  const [numVertices, setNumVertices] = useState(0);
+  const [rendering, setRendering] = useState(true);
+  const [semanPeg, setSemanPeg] = useState(null);
+  const [syntaxPeg, setSyntaxPeg] = useState(null);
+  const [syntaxView, setSyntaxView] = useState(null);
+  const [semanView, setSemanView] = useState(null);
 
-  constructor(props: PegPanelProps) {
-    super(props);
-
-    this.sizeThreshold = 600;
-    this.ID = HMatcher.Ast.byNodeType("Identifier");
-    this.viewRef = React.createRef();
-
-    this.state = {
-      defPeg: null,
-      numVertices: 0,
-      syntaxPeg: null,
-      view: null,
-    };
-  }
-
-  clearCanvas(): void {
-    if (this.viewRef.current) {
-      this.viewRef.current.querySelector("canvas")?.remove();
+  function clearCanvas(): void {
+    if (viewRef.current) {
+      viewRef.current.querySelector("canvas")?.remove();
     }
   }
 
-  init(ast: any): void {
-    this.setState({ syntaxPeg: new Hypergraph().fromAst(ast) }, () => {
-      this.clearCanvas();
-      const numVertices = this.state.syntaxPeg.vertices.size;
-      this.setState({ numVertices });
-      if (this.viewRef.current && numVertices <= this.sizeThreshold) {
-        this.setState(
-          { view: this.state.syntaxPeg.toVis().render(this.viewRef.current) },
-          () => {
-            if (this.props.language === "TypeScript") {
-              this.setState(
-                { defPeg: this.props.seman(this.state.syntaxPeg) },
-                () => {
-                  if (this.props.showDefPeg) {
-                    this.state.view.overlay(this.state.defPeg);
-                  }
-                }
-              );
-            }
-            // Other languages are not yet supported for semantic analysis
-            else {
-              this.setState({ defPeg: null });
-            }
-          }
-        );
-      }
-    });
-  }
-
-  shouldComponentUpdate(
-    nextProps: PegPanelProps,
-    nextState: PegPanelState
-  ): boolean {
-    return (
-      nextProps.ast !== this.props.ast ||
-      nextProps.highlighted !== this.props.highlighted ||
-      nextProps.language !== this.props.language ||
-      nextProps.showDefPeg !== this.props.showDefPeg ||
-      nextState.numVertices !== this.state.numVertices
-    );
-  }
-
-  componentDidUpdate(): void {
-    if (this.props.highlighted) this.init(this.props.highlighted);
-    else if (this.props.ast) {
-      this.init(this.props.ast);
+  function setup() {
+    if (props.highlighted)
+      setSyntaxPeg(new Hypergraph().fromAst(props.highlighted));
+    else if (props.ast) {
+      setSyntaxPeg(new Hypergraph().fromAst(props.ast));
     } else {
-      this.clearCanvas();
+      clearCanvas();
     }
   }
 
-  componentDidMount(): void {
-    if (this.props.ast) {
-      this.init(this.props.ast);
-    }
-  }
+  useEffect(() => {
+    if (!syntaxPeg) return;
+    clearCanvas();
+    setNumVertices(syntaxPeg.vertices.size);
 
-  render(): JSX.Element {
-    return (
-      <div className="panel" id="peg-panel">
-        <div
-          style={{
-            display:
-              this.state.numVertices <= this.sizeThreshold ? "block" : "none",
-          }}
-          ref={this.viewRef}
-          id="peg-container"
-        />
-        <div
-          style={{
-            display:
-              this.state.numVertices > this.sizeThreshold ? "block" : "none",
-          }}>
-          {`Too many vertices: ${this.state.numVertices}`}
-        </div>
+    if (viewRef.current && syntaxPeg.vertices.size <= sizeThreshold) {
+      setRendering(true);
+      setSyntaxView(
+        syntaxPeg.toVis().render(viewRef.current, () => {
+          setRendering(false);
+        })
+      );
+    }
+    // Other languages are not yet supported for semantic analysis
+    if (props.language === "TypeScript") setSemanPeg(props.seman(syntaxPeg));
+  }, [syntaxPeg]);
+
+  useEffect(() => {
+    if (semanPeg) {
+      setSemanView(semanPeg.toVis());
+    }
+  }, [semanPeg]);
+
+  useEffect(() => {
+    if (semanView) {
+      if (props.showDefPeg) {
+        syntaxView.overlay(semanView);
+      } else {
+        syntaxView.removeOverlay(semanView);
+      }
+    }
+  }, [props.showDefPeg, semanView]);
+
+  useEffect(() => {
+    setup();
+  }, [props.ast, props.highlighted]);
+
+  useEffect(() => {
+    setup();
+  }, []);
+
+  return (
+    <div className="panel" id="peg-panel">
+      <FadeLoader
+        loading={rendering}
+        css="position: absolute; top: 50%; left: 50%;"
+      />
+      <div
+        style={{
+          display: numVertices <= sizeThreshold ? "block" : "none",
+        }}
+        ref={viewRef}
+        id="peg-container"
+      />
+      <div
+        style={{
+          display: numVertices > sizeThreshold ? "block" : "none",
+        }}>
+        {`Too many vertices: ${numVertices}`}
       </div>
-    );
-  }
+    </div>
+  );
 }

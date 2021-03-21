@@ -7,7 +7,7 @@ import {
   ScriptTarget,
 } from "typescript";
 import LineAndColumnComputer from "./LineAndColumnComputer";
-import type { Ast } from "./parser";
+import { Ast } from "./parser";
 
 class TypeScriptParser {
   #LineAndColumnComputer: LineAndColumnComputer;

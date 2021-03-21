@@ -128,12 +128,12 @@ class Parser extends nearley.Parser {
   }
 }
 
-export type Ast = {
+export interface Ast {
   type: string;
   children: Ast[];
   range?: CodeRange;
   text?: string;
-};
+}
 
 export interface CodeRange {
   startLineNumber: number;

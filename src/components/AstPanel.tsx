@@ -1,51 +1,47 @@
 import React, { useState } from "react";
 import "./AstPanel.scss";
-import type { Ast } from "../syntax/parser";
-import { CodeRange } from "../syntax/parser";
+import { Ast } from "../syntax/parser";
+import { FadeLoader } from "react-spinners";
 
 interface AstPanelProps {
   ast: Ast | null;
   highlighted: Ast;
   parseErrorMsg: string;
-  updateHighlighted: (range?: CodeRange) => void;
+  setHighlighted: (ast?: Ast) => void;
 }
 
-export default class AstPanel extends React.Component<
-  { [key: string]: any },
-  { [key: string]: any }
-> {
-  constructor(props: AstPanelProps) {
-    super(props);
-  }
-
-  render(): JSX.Element {
-    return (
-      <div className="panel" id="ast-panel">
-        {this.props.ast ? (
-          <TreeView
-            tree={this.props.ast}
-            depth={0}
-            highlighted={this.props.highlighted}
-            updateHighlighted={this.props.updateHighlighted}
-          />
-        ) : null}
-        <div
-          id="parse-error"
-          style={{ display: this.props.parseErrorMsg ? "block" : "none" }}>
-          {this.props.parseErrorMsg}
-        </div>
+export default function AstPanel(props: AstPanelProps) {
+  return (
+    <div className="panel" id="ast-panel">
+      {props.ast ? (
+        <TreeView
+          tree={props.ast}
+          depth={0}
+          highlighted={props.highlighted}
+          setHighlighted={props.setHighlighted}
+        />
+      ) : (
+        <FadeLoader
+          loading={!props.parseErrorMsg}
+          css="position: absolute; top: 50%; left: 50%;"
+        />
+      )}
+      <div
+        id="parse-error"
+        style={{ display: props.parseErrorMsg ? "block" : "none" }}>
+        {props.parseErrorMsg}
       </div>
-    );
-  }
+    </div>
+  );
 }
 
 function TreeView(props: {
   tree: Ast;
   depth: number;
   highlighted: Ast;
-  updateHighlighted: (ast?: Ast) => void;
+  setHighlighted: (ast?: Ast) => void;
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   if (!props.tree) return <span />;
   else {
@@ -74,8 +70,8 @@ function TreeView(props: {
           }}
           onClick={() => {
             if (props.tree.range == null) return;
-            if (props.tree === props.highlighted) props.updateHighlighted();
-            else props.updateHighlighted(props.tree);
+            if (props.tree === props.highlighted) props.setHighlighted();
+            else props.setHighlighted(props.tree);
           }}>
           {props.tree.type}
         </span>
@@ -86,7 +82,7 @@ function TreeView(props: {
                   tree={child}
                   depth={props.depth + 1}
                   highlighted={props.highlighted}
-                  updateHighlighted={props.updateHighlighted}
+                  setHighlighted={props.setHighlighted}
                 />
               </div>
             ))
