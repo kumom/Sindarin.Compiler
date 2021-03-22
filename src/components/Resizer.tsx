@@ -1,10 +1,7 @@
 import React from "react";
 import "./Resizer.scss";
 
-export default class Resizer extends React.Component<
-  {},
-  { [key: string]: any }
-> {
+export default class Resizer extends React.Component<{}, {}> {
   ref: any;
   leftRef: any;
   rightRef: any;
@@ -24,37 +21,49 @@ export default class Resizer extends React.Component<
     this.onMouseMove = this.onMouseMove.bind(this);
   }
 
+  private getWidth(el: HTMLElement) {
+    return Number(
+      window
+        .getComputedStyle(el)
+        .getPropertyValue("width")
+        .replace(/[^0-9.]/g, "")
+    );
+  }
+
   onMouseMove(event: MouseEvent): void {
     if (!this.active) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    if (!this.leftRef && this.ref.current) {
-      this.leftRef = this.ref.current.previousElementSibling;
-      this.leftWidth = Number(
-        window
-          .getComputedStyle(this.leftRef)
-          .getPropertyValue("width")
-          .replace(/[^0-9.]/g, "")
-      );
-    }
-    if (!this.rightRef && this.ref.current) {
-      this.rightRef = this.ref.current.nextElementSibling;
-      this.rightWidth = Number(
-        window
-          .getComputedStyle(this.rightRef)
-          .getPropertyValue("width")
-          .replace(/[^0-9.]/g, "")
-      );
+    if (this.leftRef) {
+      this.leftWidth += event.movementX;
+    } else {
+      if (this.ref.current) {
+        const el = this.ref.current.previousElementSibling;
+        if (el.classList.contains("panel")) {
+          this.leftRef = el;
+          this.leftWidth = this.getWidth(el);
+        }
+      }
     }
 
-    if (this.leftRef && this.leftRef.classList.contains("panel")) {
-      this.leftWidth += event.movementX;
+    if (this.rightRef) {
+      this.rightWidth -= event.movementX;
+    } else {
+      if (this.ref.current) {
+        const el = this.ref.current.nextElementSibling;
+        if (el.classList.contains("panel")) {
+          this.rightRef = el;
+          this.rightWidth = this.getWidth(el);
+        }
+      }
+    }
+
+    if (this.leftRef && this.leftWidth > 0) {
       this.leftRef.style.width = this.leftWidth + "px";
     }
-    if (this.rightRef && this.rightRef.classList.contains("panel")) {
-      this.rightWidth -= event.movementX;
+    if (this.rightRef && this.rightWidth > 0) {
       this.rightRef.style.width = this.rightWidth + "px";
     }
   }
