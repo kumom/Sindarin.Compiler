@@ -6,19 +6,19 @@ import {
   Node,
   ScriptTarget,
 } from "typescript";
-import LineAndColumnComputer from "./LineAndColumnComputer";
+import codeRangeComputer from "./parser";
 import { Ast } from "./parser";
 
 class TypeScriptParser {
-  #LineAndColumnComputer: LineAndColumnComputer;
+  #codeRangeComputer: codeRangeComputer;
 
   constructor() {
-    this.#LineAndColumnComputer = new LineAndColumnComputer("");
+    this.#codeRangeComputer = new codeRangeComputer("");
   }
 
   parse(program: string) {
     var src = createSourceFile("this-program.ts", program, ScriptTarget.Latest);
-    this.#LineAndColumnComputer = new LineAndColumnComputer(program);
+    this.#codeRangeComputer = new codeRangeComputer(program);
     // Remove EndOfFileToken
     return this.postprocessSourceFile(src);
   }
@@ -51,8 +51,8 @@ class TypeScriptParser {
   }
 
   getRange(u: Node) {
-    const start = this.#LineAndColumnComputer.getNumberAndColumnFromPos(u.pos);
-    const end = this.#LineAndColumnComputer.getNumberAndColumnFromPos(u.end);
+    const start = this.#codeRangeComputer.getNumberAndColumnFromPos(u.pos);
+    const end = this.#codeRangeComputer.getNumberAndColumnFromPos(u.end);
     return {
       startLineNumber: start.lineNumber,
       startColumn: start.column,

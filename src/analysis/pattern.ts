@@ -1,5 +1,5 @@
 import { Hypergraph } from "./hypergraph";
-import { Ast } from "../syntax/parser";
+import type { Ast } from "../syntax/parser";
 
 import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;

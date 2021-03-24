@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import MonacoEditor from "react-monaco-editor";
 import "./EditorPanel.scss";
-import { Ast } from "../syntax/parser";
+import type { Ast } from "../syntax/parser";
 import { FadeLoader } from "react-spinners";
 
 interface EditorPanelProps {
