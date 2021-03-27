@@ -64,6 +64,7 @@ module.exports = {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
     },
     devServer: {
+        open: true,
         contentBase: [path.join(__dirname, 'dist')],
         liveReload: true,
         compress: true,
