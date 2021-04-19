@@ -9,7 +9,7 @@ import Edge = Hypergraph.Edge;
 import Vertex = Hypergraph.Vertex;
 
 function semanticAnalysis_C(peg1: Hypergraph) {
-  var peg2 = new Hypergraph();
+  const peg2 = new Hypergraph();
 
   peg2._max = peg1._max;
 
@@ -26,7 +26,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
     "iteration_statement",
   ];
 
-  var m = new HMatcher(peg1);
+  let m = new HMatcher(peg1);
 
   m.l(S).t((u: any) => {
     peg2.add([{ label: "sigma", sources: [u], target: -1 }]);
@@ -61,12 +61,14 @@ function semanticAnalysis_C(peg1: Hypergraph) {
   });
 
   function addIf1(label: string, u?: Vertex, v?: Vertex) {
-    if (u != null && v != null) peg2.add([new Edge(label, [u], v)]);
+    if (u != null && v != null) {
+      peg2.add([new Edge(label, [u], v)]);
+    }
   }
 
   m.l("block_item_list").e((e: any) => {
-    var sigmas = e.sources.map((u: any) => m.sl(u, "sigma").t_first());
-    var lscopes = e.sources.map((u: any) => m.sl(u, "lscope").t_first());
+    const sigmas = e.sources.map((u: any) => m.sl(u, "sigma").t_first());
+    const lscopes = e.sources.map((u: any) => m.sl(u, "lscope").t_first());
     for (let i = 0; i < sigmas.length - 1; ++i) {
       addIf1("next", sigmas[i], sigmas[i + 1]);
     }
@@ -85,9 +87,9 @@ function semanticAnalysis_C(peg1: Hypergraph) {
   });
 
   m.l("parameter_list").e((e: any) => {
-    var u = m.sl(e.target, "lscope").t_first();
+    let u = m.sl(e.target, "lscope").t_first();
     for (const s of e.sources) {
-      var v = m.sl(s, "lscope").t_first();
+      const v = m.sl(s, "lscope").t_first();
       if (v != null) {
         addIf1("next", u, v);
         u = v;
@@ -104,7 +106,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
   m.l("selection_statement").e((e: any) => {
     switch (e.sources[0].label) {
       case "if":
-        var [u, v1, v2] = [e.target, e.sources[4], e.sources[6]].map((u) =>
+        const [u, v1, v2] = [e.target, e.sources[4], e.sources[6]].map((u) =>
           m.sl(u, "lscope").t_first()
         );
         addIf1("id", u, v1);
@@ -116,7 +118,7 @@ function semanticAnalysis_C(peg1: Hypergraph) {
   m.l("iteration_statement").e((e: any) => {
     switch (e.sources[0].label) {
       case "while":
-        var [u, v] = [e.target, e.sources[4]].map((u) =>
+        const [u, v] = [e.target, e.sources[4]].map((u) =>
           m.sl(u, "lscope").t_first()
         );
         addIf1("id", u, v);

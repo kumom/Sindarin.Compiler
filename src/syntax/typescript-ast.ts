@@ -17,7 +17,11 @@ class TypeScriptParser {
   }
 
   parse(program: string) {
-    var src = createSourceFile("this-program.ts", program, ScriptTarget.Latest);
+    const src = createSourceFile(
+      "this-program.ts",
+      program,
+      ScriptTarget.Latest
+    );
     this.#codeRangeComputer = new codeRangeComputer(program);
     // Remove EndOfFileToken
     return this.postprocessSourceFile(src);
@@ -28,7 +32,7 @@ class TypeScriptParser {
   }
 
   postprocessAst(u: Node, src: SourceFile) {
-    var kind = SyntaxKind[u.kind];
+    const kind = SyntaxKind[u.kind];
     if (isToken(u)) {
       return {
         type: kind,
@@ -38,7 +42,7 @@ class TypeScriptParser {
         children: null,
       };
     } else {
-      var children: any = u
+      const children: any = u
         .getChildren(src)
         .map((s) => this.postprocessAst(s, src));
       return {

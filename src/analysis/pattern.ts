@@ -9,7 +9,7 @@ function* lazyFlatMap<T, TResult>(
   arr: T[] | Generator<T, any, unknown>,
   map: (obj: T) => Generator<TResult, any, unknown>
 ): Generator<TResult, any, unknown> {
-  for (let obj of arr) {
+  for (const obj of arr) {
     yield* map(obj);
   }
 }
@@ -19,7 +19,7 @@ function* lazyFilter<T>(
   arr: T[] | Generator<T, any, unknown>,
   filter: (obj: T) => boolean
 ): Generator<T, any, unknown> {
-  for (let obj of arr) {
+  for (const obj of arr) {
     if (filter(obj)) {
       yield obj;
     }
@@ -90,7 +90,7 @@ class HMatcher<VData = any> {
     const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
 
     function* aux(v: Vertex) {
-      for (let e of lazyFilter<Edge>(v.incoming, pExclude)) {
+      for (const e of lazyFilter<Edge>(v.incoming, pExclude)) {
         const handled = p(e) ? yield e : false;
         if (!handled) {
           yield* lazyFlatMap(e.sources, aux);
@@ -111,7 +111,7 @@ class HMatcher<VData = any> {
     const pExclude = HMatcher.toObjectWithLabel(excluding, { negate: true });
 
     function* aux(v: Vertex) {
-      for (let e of lazyFilter<Edge>(v.outgoing, pExclude)) {
+      for (const e of lazyFilter<Edge>(v.outgoing, pExclude)) {
         const handled = p(e) ? yield e : false;
         if (!handled) {
           yield* aux(e.target);
@@ -205,11 +205,17 @@ namespace HMatcher {
   }
 
   export function toLabelPred(l: LabelPat): LabelPred {
-    if (typeof l == "string") return (s: string) => s == l;
-    else if (Array.isArray(l)) return (s: string) => l.includes(s);
-    else if (l instanceof Set) return (s: string) => l.has(s);
-    else if (l instanceof RegExp) return (s: string) => !!s.match(l);
-    else return l;
+    if (typeof l == "string") {
+      return (s: string) => s == l;
+    } else if (Array.isArray(l)) {
+      return (s: string) => l.includes(s);
+    } else if (l instanceof Set) {
+      return (s: string) => l.has(s);
+    } else if (l instanceof RegExp) {
+      return (s: string) => !!s.match(l);
+    } else {
+      return l;
+    }
   }
 
   export const LANY: LabelPat = () => true;
@@ -226,7 +232,9 @@ namespace HMatcher {
 
     e(cont: (e: Edge) => void | boolean) {
       // iterates edges
-      for (let e of this.gen) cont(e);
+      for (const e of this.gen) {
+        cont(e);
+      }
     }
 
     t(cont: (t: Vertex<VData>) => void | boolean, labelPat?: LabelPat) {
@@ -239,22 +247,26 @@ namespace HMatcher {
       // iterates edge sources
       const p = !labelPat ? LANY_LABEL : toObjectWithLabel(labelPat);
       this.e((e) => {
-        for (let u of lazyFilter<Vertex>(e.sources, p)) cont(u);
+        for (const u of lazyFilter<Vertex>(e.sources, p)) {
+          cont(u);
+        }
       });
     }
 
     si(idx: number, cont: (t: Vertex<VData>) => void | boolean) {
       // iterates edge sources with given index
       this.e((e) => {
-        let u = e.sources[idx];
+        const u = e.sources[idx];
         u && cont(u);
       });
     }
 
     first<T>(f: (e: Edge) => T) {
-      for (let e of this.gen) {
-        var va = f(e);
-        if (va) return va;
+      for (const e of this.gen) {
+        const va = f(e);
+        if (va) {
+          return va;
+        }
       }
     }
 
@@ -359,7 +371,7 @@ namespace HMatcher {
       const self = this;
       return <VData>(m: Matched<VData>) =>
         new Matched<VData>(m.matcher, function* () {
-          for (let e of m.gen) {
+          for (const e of m.gen) {
             self.edges[key] = e;
             yield e;
           }
@@ -378,7 +390,9 @@ namespace HMatcher {
   export function byLabel<T extends { label: string }>(
     label: string | string[]
   ) {
-    if (!Array.isArray(label)) label = [label];
+    if (!Array.isArray(label)) {
+      label = [label];
+    }
     return filtered<T>((u) => label.includes(u.label));
   }
 
@@ -389,7 +403,7 @@ namespace HMatcher {
   export namespace Ast {
     export function by<D extends { ast: Ast }>(pred: (ast: Ast) => boolean) {
       return filtered<Vertex<D>>((u) => {
-        let ast = u.data?.ast;
+        const ast = u.data?.ast;
         return !!ast && pred(ast);
       });
     }

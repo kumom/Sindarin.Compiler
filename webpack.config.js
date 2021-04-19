@@ -1,5 +1,4 @@
 const path = require('path');
-const webpack = require('webpack');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyPlugin = require("copy-webpack-plugin");
@@ -28,7 +27,7 @@ module.exports = {
                 use: ['ts-loader'],
             },
             {
-                test: /\.(js|jsx)$/,
+                test: /\.jsx?$/,
                 exclude: /node_modules/,
                 use: {
                     loader: 'babel-loader',
@@ -45,13 +44,7 @@ module.exports = {
                 },
             },
             {
-                test: /\.css$/,
-                exclude: path.resolve(__dirname, './src'),
-                use: ['style-loader', 'css-loader'],
-            },
-            {
                 test: /\.s?css$/,
-                include: path.resolve(__dirname, './src'),
                 use: [
                   "style-loader",
                   "css-loader",
@@ -78,7 +71,6 @@ module.exports = {
             title: "Sindarin Compiler",
             template: "./src/index.html"
         }),
-        new webpack.HotModuleReplacementPlugin(),
         new CopyPlugin({
             patterns: [
                 { from: path.join(__dirname, 'data'), to: path.join(__dirname, 'dist/data') },

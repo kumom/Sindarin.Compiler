@@ -12,7 +12,7 @@ interface EditorPanelProps {
 }
 
 export default function EditorPanel(props: EditorPanelProps) {
-  let editor = useRef(null);
+  const editor = useRef(null);
   const [deltaDecorations, setDeltaDecorations] = useState([]);
   const [loading, setLoading] = useState(true);
   const unhighlightedRange = {
@@ -24,11 +24,15 @@ export default function EditorPanel(props: EditorPanelProps) {
   const [highlightedRange, setHighlightedRange] = useState(unhighlightedRange);
 
   useEffect(() => {
-    if (!editor.current) return;
+    if (!editor.current) {
+      return;
+    }
 
-    if (props.highlighted && props.highlighted.range)
+    if (props.highlighted && props.highlighted.range) {
       setHighlightedRange(props.highlighted.range);
-    else setHighlightedRange(unhighlightedRange);
+    } else {
+      setHighlightedRange(unhighlightedRange);
+    }
   }, [props.code, props.highlighted]);
 
   useEffect(() => {

@@ -43,8 +43,9 @@ function TreeView(props: {
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false);
 
-  if (!props.tree) return <span />;
-  else {
+  if (!props.tree) {
+    return <span />;
+  } else {
     return (
       <div
         className="node-wrapper"
@@ -69,9 +70,14 @@ function TreeView(props: {
             filter: props.tree === props.highlighted ? "invert(50%)" : "none",
           }}
           onClick={() => {
-            if (props.tree.range == null) return;
-            if (props.tree === props.highlighted) props.setHighlighted();
-            else props.setHighlighted(props.tree);
+            if (props.tree.range == null) {
+              return;
+            }
+            if (props.tree === props.highlighted) {
+              props.setHighlighted();
+            } else {
+              props.setHighlighted(props.tree);
+            }
           }}>
           {props.tree.type}
         </span>

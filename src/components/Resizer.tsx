@@ -31,7 +31,9 @@ export default class Resizer extends React.Component<{}, {}> {
   }
 
   onMouseMove(event: MouseEvent): void {
-    if (!this.active) return;
+    if (!this.active) {
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();

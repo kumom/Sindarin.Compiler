@@ -32,9 +32,9 @@ export default function PegPanel(props: PegPanelProps) {
   }
 
   function setup() {
-    if (props.highlighted)
+    if (props.highlighted) {
       setSyntaxPeg(new Hypergraph().fromAst(props.highlighted));
-    else if (props.ast) {
+    } else if (props.ast) {
       setSyntaxPeg(new Hypergraph().fromAst(props.ast));
     } else {
       clearCanvas();
@@ -42,7 +42,9 @@ export default function PegPanel(props: PegPanelProps) {
   }
 
   useEffect(() => {
-    if (!syntaxPeg) return;
+    if (!syntaxPeg) {
+      return;
+    }
     clearCanvas();
     setNumVertices(syntaxPeg.vertices.size);
 
@@ -55,7 +57,9 @@ export default function PegPanel(props: PegPanelProps) {
       );
     }
     // Other languages are not yet supported for semantic analysis
-    if (props.language === "TypeScript") setSemanPeg(props.seman(syntaxPeg));
+    if (props.language === "TypeScript") {
+      setSemanPeg(props.seman(syntaxPeg));
+    }
   }, [syntaxPeg]);
 
   useEffect(() => {

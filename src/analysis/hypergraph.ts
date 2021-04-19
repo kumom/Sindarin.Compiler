@@ -12,18 +12,23 @@ class Hypergraph<VData = any> {
   constructor() {}
 
   get nodes() {
-    var v = new Set<Hypergraph.Vertex<VData>>();
-    for (let e of this.edges) for (let u of e.incident) v.add(u);
+    const v = new Set<Hypergraph.Vertex<VData>>();
+    for (const e of this.edges) {
+      for (const u of e.incident) {
+        v.add(u);
+      }
+    }
     return v;
   }
 
   add(edges: Hypergraph.EdgeData[]) {
-    var vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>>(),
+    const vmap = new Map<Hypergraph.VertexId, Hypergraph.Vertex<VData>>(),
       get = (u: Hypergraph.VertexId | Hypergraph.Vertex<VData>) => {
         if (typeof u === "number") {
-          if (u > 0) return this._get(u);
-          else {
-            var v = vmap.get(u);
+          if (u > 0) {
+            return this._get(u);
+          } else {
+            let v = vmap.get(u);
             if (!v) {
               v = this._fresh();
               vmap.set(u, v);
@@ -31,16 +36,21 @@ class Hypergraph<VData = any> {
             return v;
           }
         } else {
-          if (!this.vertices.get(u.id)) this.vertices.set(u.id, u);
+          if (!this.vertices.get(u.id)) {
+            this.vertices.set(u.id, u);
+          }
           return u;
         }
       };
-    for (let e of edges) {
-      for (let u of [e.target, ...e.sources])
-        if (typeof u === "number") this._max = Math.max(this._max, u);
+    for (const e of edges) {
+      for (const u of [e.target, ...e.sources]) {
+        if (typeof u === "number") {
+          this._max = Math.max(this._max, u);
+        }
+      }
     }
-    var added = edges.map((ed) => {
-      var e = new Hypergraph.Edge(
+    const added = edges.map((ed) => {
+      const e = new Hypergraph.Edge(
         ed.label,
         ed.sources.map(get),
         get(ed.target)
@@ -54,9 +64,9 @@ class Hypergraph<VData = any> {
   }
 
   remove(edges: Hypergraph.Edge[]) {
-    for (let e of edges) {
+    for (const e of edges) {
       e.target.incoming = e.target.incoming.filter((ue) => ue !== e);
-      for (let u of e.sources) {
+      for (const u of e.sources) {
         u.outgoing = u.outgoing.filter((ue) => ue !== e);
       }
     }
@@ -64,13 +74,13 @@ class Hypergraph<VData = any> {
   }
 
   merge(vertices: Hypergraph.Vertex<VData>[]) {
-    var rep = vertices[0];
-    for (let u of vertices.slice(1)) {
-      for (let e of u.incoming) {
+    const rep = vertices[0];
+    for (const u of vertices.slice(1)) {
+      for (const e of u.incoming) {
         e.target = rep;
         rep.incoming.push(e);
       }
-      for (let e of u.outgoing) {
+      for (const e of u.outgoing) {
         e.sources = e.sources.map((v) => (u === v ? rep : v));
         rep.outgoing.push(e);
       }
@@ -79,16 +89,16 @@ class Hypergraph<VData = any> {
   }
 
   fromAst(ast: Ast) {
-    var self = this,
+    let self = this,
       c: Hypergraph.VertexId = this._max;
     function aux(ast: Ast) {
-      var root = ++c,
+      const root = ++c,
         u = self._get(root);
       // @ts-ignore
       if (ast.children) {
         // @ts-ignore
 
-        var subs = ast.children.map(aux);
+        const subs = ast.children.map(aux);
         self.add([{ label: ast.type || "", sources: subs, target: root }]);
       } else {
         // @ts-ignore
@@ -103,7 +113,7 @@ class Hypergraph<VData = any> {
   }
 
   private _get(id: Hypergraph.VertexId) {
-    var v = this.vertices.get(id);
+    let v = this.vertices.get(id);
     if (!v) {
       v = new Hypergraph.Vertex(id);
       this.vertices.set(id, v);
@@ -112,13 +122,13 @@ class Hypergraph<VData = any> {
   }
 
   private _fresh() {
-    var u = new Hypergraph.Vertex(++this._max);
+    const u = new Hypergraph.Vertex(++this._max);
     this.vertices.set(u.id, u);
     return u;
   }
 
   toVis(edgeNodeProfile = null) {
-    var nodes = new DataSet<CustomizedNode>(
+    const nodes = new DataSet<CustomizedNode>(
       [...this.vertices.values()].map((u) => {
         return {
           id: u.id,
@@ -132,10 +142,10 @@ class Hypergraph<VData = any> {
     );
 
     // Collect edges
-    var edges = new DataSet<Edge>([]);
+    const edges = new DataSet<Edge>([]);
 
-    for (let e of this.edges) {
-      var ve = e.toVis(edgeNodeProfile);
+    for (const e of this.edges) {
+      const ve = e.toVis(edgeNodeProfile);
       nodes.add(ve.nodes);
       edges.add(ve.edges);
     }
@@ -181,7 +191,7 @@ namespace Hypergraph {
     toVis(edgeNodeProfile = null) {
       edgeNodeProfile = edgeNodeProfile || NUCLEUS;
 
-      var nucleus = uuidv1(),
+      const nucleus = uuidv1(),
         nodes: CustomizedNode[] = [
           {
             id: nucleus,
@@ -286,7 +296,9 @@ class HypergraphView {
     this.basePeg = peg;
     this.data = data;
     this.baseData = data;
-    if (this.data.options) this.options = this.data.options;
+    if (this.data.options) {
+      this.options = this.data.options;
+    }
   }
 
   render(on: HTMLElement, callback?) {
@@ -328,12 +340,14 @@ class HypergraphView {
   }
 
   untangle() {
-    for (let row of this.iterLevels()) this.sortHorizontally(row);
+    for (const row of this.iterLevels()) {
+      this.sortHorizontally(row);
+    }
   }
 
   *iterLevels() {
-    var yvisited = new Set<number>();
-    for (let u of Object.values(this._nodes)) {
+    const yvisited = new Set<number>();
+    for (const u of Object.values(this._nodes)) {
       if (!yvisited.has(u.y)) {
         yvisited.add(u.y);
         yield this.getLevel(u.id);
@@ -348,19 +362,21 @@ class HypergraphView {
   getLevel(node?: IdType) {
     if (!node) {
       node = this.network.getSelectedNodes()[0];
-      if (!node) return;
+      if (!node) {
+        return;
+      }
     }
-    var pos = this.network.getPosition(node);
+    const pos = this.network.getPosition(node);
     return Object.values(this._nodes).filter((u) => u.y == pos.y);
   }
 
   sortHorizontally(nodes: Node[]) {
     if (!nodes) {
-      var _m = this._nodes;
+      const _m = this._nodes;
       nodes = this.network.getSelectedNodes().map((id) => _m[id]);
     }
-    var posx = nodes.map((u) => u.x).sort((x1, x2) => x1 - x2);
-    for (let i in nodes) {
+    const posx = nodes.map((u) => u.x).sort((x1, x2) => x1 - x2);
+    for (const i in nodes) {
       this.network.moveNode(nodes[i].id, posx[i], nodes[i].y);
     }
   }
@@ -398,10 +414,13 @@ class HypergraphView {
     // Restore to the original view
     this.baseData.nodes.update(
       this.baseData.nodes.map((node) => {
-        if (node.token) return { id: node.id, fixed: false, ...LIT };
-        else if (node.innerNode)
+        if (node.token) {
+          return { id: node.id, fixed: false, ...LIT };
+        } else if (node.innerNode) {
           return { id: node.id, fixed: false, ...NUCLEUS };
-        else return { id: node.id, fixed: false, ...DUMMY };
+        } else {
+          return { id: node.id, fixed: false, ...DUMMY };
+        }
       })
     );
     this.baseData.edges.update(

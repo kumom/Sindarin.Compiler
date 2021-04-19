@@ -1,4 +1,4 @@
-const fs = require("fs");
+import fs from "fs";
 
 const IDENTIFIER = /[_a-zA-Z][_a-zA-Z0-9]*/;
 const KEYWORDS = {};

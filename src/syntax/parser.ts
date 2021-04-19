@@ -12,8 +12,10 @@ class SkippingLexer implements nearley.Lexer {
 
   next() {
     do {
-      var token = this.lexer.next();
-      if (!(token != null && this.skip.has(token.type!))) return token;
+      const token = this.lexer.next();
+      if (!(token != null && this.skip.has(token.type!))) {
+        return token;
+      }
     } while (true);
   }
 
@@ -55,7 +57,7 @@ class Parser extends nearley.Parser {
   }
 
   static prepare(grammar: any) {
-    var rigid = grammar.Rigid || [];
+    const rigid = grammar.Rigid || [];
     for (const rule of grammar.ParserRules) {
       rule.postprocess = rigid.includes(rule.name)
         ? (data: any[]) => this.unfold(data, rule.name)
@@ -94,9 +96,10 @@ class Parser extends nearley.Parser {
         range: ast.range,
       };
     } else {
-      let tree = { type: ast.type, range: ast.range, children: [] };
-      for (let i = 0; i < ast.length; i++)
+      const tree = { type: ast.type, range: ast.range, children: [] };
+      for (let i = 0; i < ast.length; i++) {
         tree.children.push(this.toTree(ast[i]));
+      }
 
       return tree;
     }
@@ -117,7 +120,9 @@ class Parser extends nearley.Parser {
         endColumn: end.column,
       };
     } else {
-      for (let i = 0; i < ast.length; i++) this.setRange(ast[i]);
+      for (let i = 0; i < ast.length; i++) {
+        this.setRange(ast[i]);
+      }
 
       const firstChild = ast[0],
         lastChild = ast[ast.length - 1];
@@ -133,8 +138,11 @@ class Parser extends nearley.Parser {
   static unfold(data: any[], type: string) {
     function* iter() {
       for (const d of data) {
-        if (d.type === type) yield* d;
-        else yield d;
+        if (d.type === type) {
+          yield* d;
+        } else {
+          yield d;
+        }
       }
     }
     return Object.assign([...iter()], { type });

@@ -20,7 +20,9 @@ export default function App({ config }) {
   const [showDefPeg, setShowDefPeg] = useState(false);
 
   useEffect(() => {
-    if (!code) return;
+    if (!code) {
+      return;
+    }
     try {
       setAst(parser.parse(code));
       setParseErrorMsg("");
