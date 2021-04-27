@@ -1,77 +1,85 @@
-import Vue from 'vue';
-import Component from 'vue-class-component';
-import CodeMirror from 'codemirror';
+import Vue from "vue";
+import Component from "vue-class-component";
+import CodeMirror from "codemirror";
 
-import type { Parser } from '../ide';
+import type { Parser } from "../ide";
 
-import { treeview, nonreactive } from '../components';
-import { CodeRange } from './editor-panel';
-
-
+import { treeview, nonreactive } from "../components";
+import { CodeRange } from "./editor-panel";
 
 @Component
 class AstPanel extends Vue {
+  $el: Element;
+  tree: Vue;
+  ast: Ast;
 
-    $el: Element
-    tree: Vue
-    ast: Ast
-    
-    focused: Ast
+  focused: Ast;
 
-    render(createElement) {
-        return createElement(treeview, {children: []});
+  render(createElement) {
+    return createElement(treeview, { children: [] });
+  }
+
+  mounted() {
+    this.tree = this.$children[0];
+    this.tree.$on("action", (ev: TreeViewActionEvent) => this.action(ev));
+  }
+
+  show(ast: Ast, doc?: CodeMirror.Doc) {
+    this.ast = this.focused = ast;
+    function aux(ast: Ast) {
+      if (Array.isArray(ast)) {
+        return {
+          root: {
+            _component: "term-inner",
+            type: ast.type,
+            ast: nonreactive(ast),
+          },
+          children: ast.map(aux),
+        };
+      } else {
+        return { root: { _component: "token", at: pos(ast), ...ast } };
+      }
     }
-
-    mounted() {
-        this.tree = this.$children[0];
-        this.tree.$on('action', (ev: TreeViewActionEvent) => this.action(ev));
+    function pos(token) {
+      return nonreactive(
+        new CodeRange(
+          { doc, line: token.line, col: token.col },
+          { doc, line: token.line, col: token.col + token.text.length }
+        )
+      );
     }
+    this.tree.$props.children.splice(0, Infinity, aux(ast));
+  }
 
-    show(ast: Ast, doc?: CodeMirror.Doc) {
-        this.ast = this.focused = ast;
-        function aux(ast: Ast) {
-            if (Array.isArray(ast))
-                return {root: {_component: 'term-inner', type: ast.type,
-                               ast: nonreactive(ast)},
-                        children: ast.map(aux)};
-            else
-                return {root: {_component: 'token', at: pos(ast), ...ast}};
-        }
-        function pos(token) {
-            return nonreactive(new CodeRange(
-                {doc, line: token.line, col: token.col},
-                {doc, line: token.line, col: token.col + token.text.length}));
-        }
-        this.tree.$props.children.splice(0, Infinity, aux(ast));
+  parse(doc: CodeMirror.Doc, parser: Parser) {
+    const program = doc.getValue(),
+      ast = parser.parse(program);
+    this.show(ast, doc);
+  }
+
+  action(ev: TreeViewActionEvent) {
+    switch (ev.type) {
+      case "peg":
+        this.focus(ev.target.ast);
+        break;
     }
+  }
 
-    parse(doc: CodeMirror.Doc, parser: Parser) {
-        var program = doc.getValue(),
-            ast = parser.parse(program);
-        this.show(ast, doc);
-    }
+  focus(ast: Ast) {
+    this.focused = ast;
+    this.$emit("action:peg", { ast });
+  }
 
-    action(ev: TreeViewActionEvent) {
-        switch (ev.type) {
-            case 'peg': this.focus(ev.target.ast); break;
-        }
-    }
-
-    focus(ast: Ast) {
-        this.focused = ast;
-        this.$emit('action:peg', {ast});
-    }
-
-    static install() {
-        Vue.component('ide-panel-ast', this);
-    }
-
+  static install() {
+    Vue.component("ide-panel-ast", this);
+  }
 }
 
+type Ast = { type: string } & (any[] | { text: string });
 
-type Ast = {type: string} & (any[] | {text: string});
+type TreeViewActionEvent = {
+  type: string;
+  target: Vue.Component & { ast: Ast };
+};
 
-type TreeViewActionEvent = {type: string, target: Vue.Component & {ast: Ast}};
-
-
-export { AstPanel, Ast }
+export { AstPanel, Ast };
