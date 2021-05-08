@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Hypergraph } from "../analysis/hypergraph";
-import type { Ast } from "../syntax/parser";
+import { Hypergraph } from "analysis/hypergraph";
+import type { Ast } from "syntax/parser";
 import { FadeLoader } from "react-spinners";
 
 import "./PegPanel.scss";
@@ -15,7 +15,7 @@ interface PegPanelProps {
 }
 
 export default function PegPanel(props: PegPanelProps) {
-  const sizeThreshold = 600;
+  const sizeThreshold = 1800;
   const viewRef = useRef(null);
 
   const [numVertices, setNumVertices] = useState(0);
@@ -48,17 +48,22 @@ export default function PegPanel(props: PegPanelProps) {
     clearCanvas();
     setNumVertices(syntaxPeg.vertices.size);
 
-    if (viewRef.current && syntaxPeg.vertices.size <= sizeThreshold) {
-      setRendering(true);
-      setSyntaxView(
-        syntaxPeg.toVis().render(viewRef.current, () => {
-          setRendering(false);
-        })
-      );
-    }
-    // Other languages are not yet supported for semantic analysis
-    if (props.language === "TypeScript") {
-      setSemanPeg(props.seman(syntaxPeg));
+    if (syntaxPeg.vertices.size > sizeThreshold) {
+      setRendering(false);
+    } else {
+      if (viewRef.current) {
+        setRendering(true);
+        setSyntaxView(
+          syntaxPeg.toVis().render(viewRef.current, () => {
+            setRendering(false);
+          })
+        );
+      }
+
+      // Other languages are not yet supported for semantic analysis
+      if (props.language === "TypeScript") {
+        setSemanPeg(props.seman(syntaxPeg));
+      }
     }
   }, [syntaxPeg]);
 
@@ -69,14 +74,14 @@ export default function PegPanel(props: PegPanelProps) {
   }, [semanPeg]);
 
   useEffect(() => {
-    if (semanView) {
+    if (semanView && syntaxView) {
       if (props.showDefPeg) {
         syntaxView.overlay(semanView);
       } else {
         syntaxView.removeOverlay(semanView);
       }
     }
-  }, [props.showDefPeg, semanView]);
+  }, [props.showDefPeg, semanView, syntaxView]);
 
   useEffect(() => {
     setup();
@@ -86,6 +91,10 @@ export default function PegPanel(props: PegPanelProps) {
     setup();
   }, []);
 
+  useEffect(() => {
+    console.log("rendering: ", rendering);
+  });
+
   return (
     <div className="panel" id="peg-panel">
       <FadeLoader
@@ -94,14 +103,15 @@ export default function PegPanel(props: PegPanelProps) {
       />
       <div
         style={{
-          display: numVertices <= sizeThreshold ? "block" : "none",
+          display:
+            numVertices <= sizeThreshold && !rendering ? "block" : "none",
         }}
         ref={viewRef}
         id="peg-container"
       />
       <div
         style={{
-          display: numVertices > sizeThreshold ? "block" : "none",
+          display: numVertices > sizeThreshold && !rendering ? "block" : "none",
         }}>
         {`Too many vertices: ${numVertices}`}
       </div>

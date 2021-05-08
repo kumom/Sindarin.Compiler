@@ -10,7 +10,6 @@ import PegPanel from "./PegPanel";
 export default function App({ config }) {
   const [ast, setAst] = useState(null);
   const [code, setCode] = useState("");
-  const [entry, setEntry] = useState("");
   const [filename, setFilename] = useState("");
   const [highlighted, setHighlighted] = useState(null);
   const [language, setLanguage] = useState("TypeScript");
@@ -38,7 +37,6 @@ export default function App({ config }) {
     setParser(config[language].parser);
     setSeman(() => config[language].seman);
     setFilename(config[language].filename);
-    setEntry(config[language].entry);
     fetch(config[language].filename).then(async (res) => {
       res.text().then(setCode);
     });

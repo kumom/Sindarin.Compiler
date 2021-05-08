@@ -112,7 +112,7 @@ class Hypergraph<VData = any> {
     return this;
   }
 
-  private _get(id: Hypergraph.VertexId) {
+  _get(id: Hypergraph.VertexId) {
     let v = this.vertices.get(id);
     if (!v) {
       v = new Hypergraph.Vertex(id);
@@ -121,8 +121,10 @@ class Hypergraph<VData = any> {
     return v;
   }
 
-  private _fresh() {
+  _fresh(label?: string) {
     const u = new Hypergraph.Vertex(++this._max);
+    u.label = label;
+
     this.vertices.set(u.id, u);
     return u;
   }
@@ -145,9 +147,12 @@ class Hypergraph<VData = any> {
     const edges = new DataSet<Edge>([]);
 
     for (const e of this.edges) {
-      const ve = e.toVis(edgeNodeProfile);
-      nodes.add(ve.nodes);
-      edges.add(ve.edges);
+      const nucleus = uuidv1();
+      nodes.add([{ id: nucleus, label: e.label, ...edgeNodeProfile }]);
+      edges.add([
+        { from: nucleus, to: e.target.id, ...TO },
+        ...e.sources.map((v) => ({ from: v.id, to: nucleus, ...FROM })),
+      ]);
     }
 
     return new HypergraphView(this, {
@@ -180,34 +185,13 @@ namespace Hypergraph {
     label: string;
     sources: Vertex[];
     target: Vertex;
-    constructor(label: string, sources: Vertex[], target: Vertex) {
+    constructor(label: string, sources: Vertex[], target: Vertex = null) {
       this.label = label;
       this.sources = sources;
       this.target = target;
     }
     get incident() {
       return [this.target, ...this.sources];
-    }
-    toVis(edgeNodeProfile = null) {
-      edgeNodeProfile = edgeNodeProfile || NUCLEUS;
-
-      const nucleus = uuidv1(),
-        nodes: CustomizedNode[] = [
-          {
-            id: nucleus,
-            label: this.label,
-            ...edgeNodeProfile,
-            token: false,
-            innerNode: true,
-          },
-        ],
-        edges: Edge[] = [
-          // @ts-ignore
-          { from: nucleus, to: this.target.id, ...EDGE },
-          // @ts-ignore
-          ...this.sources.map((v) => ({ from: v.id, to: nucleus, ...EDGE })),
-        ];
-      return { nodes, edges };
     }
   }
 
@@ -224,11 +208,15 @@ const NUCLEUS = {
     shapeProperties: { borderRadius: 99 },
     font: { color: "#212121" },
   },
-  EDGE = {
+  TO = {
     arrows: { to: { enabled: true, scaleFactor: 0.5 } },
     color: "#997",
     length: 1,
-    physics: false,
+  },
+  FROM = {
+    arrows: { middle: { enabled: true, scaleFactor: 0.5 } },
+    color: "#997",
+    length: 1,
   },
   DUMMY = {
     color: "#7bb2e8",
@@ -424,7 +412,7 @@ class HypergraphView {
       })
     );
     this.baseData.edges.update(
-      this.baseData.edges.getIds().map((id) => ({ id, ...EDGE }))
+      this.baseData.edges.getIds().map((id) => ({ id, ...TO }))
     );
   }
 }
