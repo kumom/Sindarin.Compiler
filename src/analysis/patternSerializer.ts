@@ -113,10 +113,7 @@ function* _serializeDefinition(def: PatternDefinition) {
   } = def;
 
   if (typeof labelPred === "function") {
-    if (
-      KNOWN_FUNCTIONS[labelPred.name] === null ||
-      KNOWN_FUNCTIONS[labelPred.name] === undefined
-    ) {
+    if (!KNOWN_FUNCTIONS[labelPred.name]) {
       throw `KNOWN_FUNCTIONS[${labelPred.name}] not found`;
     }
     yield labelPred.name;

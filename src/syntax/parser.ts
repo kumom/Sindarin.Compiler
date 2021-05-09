@@ -13,7 +13,7 @@ class SkippingLexer implements nearley.Lexer {
   next() {
     do {
       const token = this.lexer.next();
-      if (!(token != null && this.skip.has(token.type!))) {
+      if (!(token && this.skip.has(token.type))) {
         return token;
       }
     } while (true);
