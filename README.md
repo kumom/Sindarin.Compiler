@@ -5,6 +5,4 @@ and visualization.
 
 Run `npm i` if you are building the project for the first time.
 
-Run `npm run start:dev` and open `http://localhost:8080/` in the browser to start the development server.
-
-Run `npm run build` for production build.
+`npm run start` automatically starts the development server and opens a new tab in your browser.
