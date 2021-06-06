@@ -33,7 +33,7 @@ export default function Toolbar({
           onChange={(event) => {
             setAnalysisType(event.target.value);
           }}>
-          {Object.entries(allAnalysisTypes).map(([displayName, type]) => (
+          {allAnalysisTypes.map(([type, displayName]) => (
             <option key={type} value={type}>
               {displayName}
             </option>

@@ -572,9 +572,10 @@ function _parseSyntaxList(vertex: Vertex): Vertex[] {
   return edge.sources.filter((_) => _.label !== ",");
 }
 
-function _parsePropertyAccessExpression(
-  edge: Edge
-): { base: Vertex; prop: Vertex } {
+function _parsePropertyAccessExpression(edge: Edge): {
+  base: Vertex;
+  prop: Vertex;
+} {
   console.assert(edge.label === "PropertyAccessExpression");
   console.assert(edge.sources.length === 3);
 

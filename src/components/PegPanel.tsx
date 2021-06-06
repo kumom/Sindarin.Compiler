@@ -41,25 +41,24 @@ export default function PegPanel({ analysisType, ast, highlighted, language }) {
     } else {
       if (viewRef.current) {
         setRendering(true);
-
         astGraphView.current = astGraph.toVis().render(viewRef.current, () => {
           setRendering(false);
-          // Other languages are not yet supported
-          if (language === "TypeScript") {
-            lexicalGraphView.current &&
-              astGraphView.current.removeOverlay(lexicalGraphView.current);
-            pointsToGraphView.current &&
-              astGraphView.current.removeOverlay(pointsToGraphView.current);
 
-            if (analysisType === "lexical") {
-              const lexicalScopeAnalysis = config[language].lexical;
-              const lexicalGraph = lexicalScopeAnalysis(astGraph);
-              lexicalGraphView.current = lexicalGraph.toVis();
-              astGraphView.current.overlay(lexicalGraphView.current);
-            }
+          lexicalGraphView.current &&
+            astGraphView.current.removeOverlay(lexicalGraphView.current);
+          pointsToGraphView.current &&
+            astGraphView.current.removeOverlay(pointsToGraphView.current);
 
-            if (analysisType === "pointsTo") {
-              const pointsToAnalysis = config[language].pointsTo;
+          if (analysisType === "lexical") {
+            const lexicalScopeAnalysis = config[language].lexical;
+            const lexicalGraph = lexicalScopeAnalysis(astGraph);
+            lexicalGraphView.current = lexicalGraph.toVis();
+            astGraphView.current.overlay(lexicalGraphView.current);
+          }
+
+          if (analysisType === "pointsTo") {
+            const pointsToAnalysis = config[language].pointsTo;
+            if (pointsToAnalysis) {
               const pointsToGraph = pointsToAnalysis(astGraph);
               pointsToGraphView.current = pointsToGraph.toVis();
               astGraphView.current.overlay(pointsToGraphView.current);

@@ -6,7 +6,9 @@ import { Hypergraph } from "./hypergraph";
  * @param pred filter predicate
  */
 export function filtered<T>(pred: (t: T) => boolean) {
-  return <S>(cont: (t: T) => S) => (t: T) => (pred(t) ? cont(t) : undefined);
+  return <S>(cont: (t: T) => S) =>
+    (t: T) =>
+      pred(t) ? cont(t) : undefined;
 }
 
 export function byLabel<T extends { label: string }>(label: string | string[]) {

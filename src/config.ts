@@ -5,11 +5,11 @@ import { C99Parser } from "syntax/c99";
 import { TypeScriptParser } from "syntax/typescript-ast";
 
 export const allLanguages: Language[] = ["C", "TypeScript"];
-export const allAnalysisTypes: { [key: string]: AnalysisType } = {
-  None: "none",
-  "Lexical scope": "lexical",
-  "Points-to": "pointsTo",
-};
+export const allAnalysisTypes: [AnalysisType, string][] = [
+  ["none", "None"],
+  ["lexical", "Lexical scope"],
+  ["pointsTo", "Points-to"],
+];
 
 export const graphNodeThreshold = 600;
 
