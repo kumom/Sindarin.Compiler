@@ -8,10 +8,6 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, "dist")
     },
-    node: {
-        __filename: "mock",
-        __dirname: true
-    },
     stats: {
         errorDetails: true,
     },
@@ -46,11 +42,11 @@ module.exports = {
             {
                 test: /\.s?css$/,
                 use: [
-                  "style-loader",
-                  "css-loader",
-                  "sass-loader",
+                    "style-loader",
+                    "css-loader",
+                    "sass-loader",
                 ],
-              }
+            }
         ],
     },
     resolve: {

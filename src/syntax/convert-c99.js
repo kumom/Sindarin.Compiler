@@ -33,8 +33,8 @@ function importBison(yfile) {
 
   function el(spec) {
     if (
-      KEYWORDS.hasOwnProperty(spec) ||
-      OPERATORS.hasOwnProperty(spec) ||
+      Object.prototype.hasOwnProperty.call(KEYWORDS, spec) ||
+      Object.prototype.hasOwnProperty.call(OPERATORS, spec) ||
       SPECIAL.includes(spec)
     ) {
       return { type: spec };
@@ -55,12 +55,10 @@ function importBison(yfile) {
   }
 }
 
-if (module.id === ".") {
-  importFlex("src/assets/c99.l");
-  importBison("src/assets/c99.y");
+importFlex("src/assets/c99.l");
+importBison("src/assets/c99.y");
 
-  fs.writeFileSync(
-    "src/syntax/c99.json",
-    JSON.stringify({ OPERATORS, KEYWORDS, GRAMMAR })
-  );
-}
+fs.writeFileSync(
+  "src/syntax/c99.json",
+  JSON.stringify({ OPERATORS, KEYWORDS, GRAMMAR })
+);

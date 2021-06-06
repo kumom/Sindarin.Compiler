@@ -17,9 +17,7 @@ const KNOWN_FUNCTIONS = {
 
 export function loadPattern(patternString: string): RoutePatternDefinition {
   const routeSplit = patternString.split("||");
-  if (routeSplit.length !== 2) {
-    throw "routeSplit.length !== 2";
-  }
+  console.assert(routeSplit.length === 2);
 
   const flagValues = routeSplit[0].split("-").reduce(
     (pv, cv) => {
@@ -46,9 +44,7 @@ export function loadPattern(patternString: string): RoutePatternDefinition {
 
 function loadDefinition(definitionString: string): PatternDefinition {
   const defSplit = definitionString.split(" ");
-  if (defSplit.length !== 4) {
-    throw "defSplit.length !== 4";
-  }
+  console.assert(defSplit.length === 4);
 
   const [labelPred, vertexPred, arrowPart, modifiers] = defSplit;
   const arrow = arrowPart.substr(0, 2);
@@ -113,9 +109,7 @@ function* _serializeDefinition(def: PatternDefinition) {
   } = def;
 
   if (typeof labelPred === "function") {
-    if (!KNOWN_FUNCTIONS[labelPred.name]) {
-      throw `KNOWN_FUNCTIONS[${labelPred.name}] not found`;
-    }
+    console.assert(KNOWN_FUNCTIONS[labelPred.name]);
     yield labelPred.name;
   } else {
     yield `${JSON.stringify(labelPred)}`;

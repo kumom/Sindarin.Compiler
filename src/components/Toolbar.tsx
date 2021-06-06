@@ -1,43 +1,44 @@
 import React from "react";
-import "./Toolbar.scss";
+import { allAnalysisTypes, allLanguages } from "config";
 
-export default function Toolbar(props: {
-  allLanguages: string[];
-  language: string;
-  setLanguage: (language: string) => void;
-  setShowDefPeg: (showDefPeg: boolean) => void;
+export default function Toolbar({
+  language,
+  setLanguage,
+  analysisType,
+  setAnalysisType,
 }): JSX.Element {
   return (
     <div id="toolbar">
-      <div className="widget" id="language-selector">
+      <div className="widget">
         <label>Source language:</label>
         <select
           name="languages"
           id="languages"
-          value={props.language}
+          value={language}
           onChange={(event) => {
-            props.setLanguage(event.target.value);
+            setLanguage(event.target.value as Language);
           }}>
-          {props.allLanguages.map((language, index) => (
+          {allLanguages.map((language, index) => (
             <option key={index} value={language}>
               {language}
             </option>
           ))}
         </select>
       </div>
-      <div
-        className="widget"
-        id="peg-selector"
-        style={{ display: props.language === "TypeScript" ? "block" : "none" }}>
-        <input
-          type="checkbox"
-          name="peg-type"
-          value="def-peg"
+      <div className="widget">
+        <label>Analysis: </label>
+        <select
+          id="analysis-type"
+          value={analysisType}
           onChange={(event) => {
-            props.setShowDefPeg(event.target.checked);
-          }}
-        />
-        <label>Definition PEG</label>
+            setAnalysisType(event.target.value);
+          }}>
+          {Object.entries(allAnalysisTypes).map(([displayName, type]) => (
+            <option key={type} value={type}>
+              {displayName}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

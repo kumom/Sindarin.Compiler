@@ -1,7 +1,6 @@
 import { Hypergraph } from "./hypergraph";
 import { HMatcher } from "./pattern";
 import * as Syntax from "./syntax";
-import type { SyntaxToken } from "./syntax";
 import Vertex = Hypergraph.Vertex;
 
 // Not really, but close enough :shrug

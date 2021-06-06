@@ -16,6 +16,15 @@ interface Edge {
   target: Vertex;
 }
 
+type LabelPat =
+  | SyntaxToken
+  | SyntaxToken[]
+  | Set<SyntaxToken>
+  | RegExp
+  | LabelPred;
+type LabelPred = (l: string) => boolean;
+type ObjectWithLabel = (obj: { label: string }) => boolean;
+
 interface PatternDefinitionPayload {
   vertexLabelPat?: LabelPat; // Pattern for vertex label matching
   visited?: Set<string>; // Visited nodes by `getRouteKey`
@@ -42,12 +51,3 @@ interface PatternDefinition {
   excluding?: LabelPat; // Exclude labels
   vertexLabelPat?: LabelPat; // Filter for vertices label
 }
-
-type LabelPat =
-  | SyntaxToken
-  | SyntaxToken[]
-  | Set<SyntaxToken>
-  | RegExp
-  | LabelPred;
-type LabelPred = (l: string) => boolean;
-type ObjectWithLabel = (obj: { label: string }) => boolean;

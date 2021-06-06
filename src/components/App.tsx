@@ -1,28 +1,25 @@
 import React, { useEffect, useState } from "react";
-import "./App.scss";
-
+import config from "config";
 import Resizer from "./Resizer";
 import EditorPanel from "./EditorPanel";
 import Toolbar from "./Toolbar";
 import AstPanel from "./AstPanel";
 import PegPanel from "./PegPanel";
 
-export default function App({ config }) {
+export default function App() {
   const [ast, setAst] = useState(null);
   const [code, setCode] = useState("");
-  const [filename, setFilename] = useState("");
   const [highlighted, setHighlighted] = useState(null);
-  const [language, setLanguage] = useState("TypeScript");
+  const [language, setLanguage] = useState<Language>("TypeScript");
   const [parseErrorMsg, setParseErrorMsg] = useState("");
-  const [parser, setParser] = useState(null);
-  const [seman, setSeman] = useState(null);
-  const [showDefPeg, setShowDefPeg] = useState(false);
+  const [analysisType, setAnalysisType] = useState<AnalysisType>("none");
 
   useEffect(() => {
     if (!code) {
       return;
     }
     try {
+      const parser = config[language].parser;
       setAst(parser.parse(code));
       setParseErrorMsg("");
     } catch (e) {
@@ -34,9 +31,6 @@ export default function App({ config }) {
 
   useEffect(() => {
     setAst(null);
-    setParser(config[language].parser);
-    setSeman(() => config[language].seman);
-    setFilename(config[language].filename);
     fetch(config[language].filename).then(async (res) => {
       res.text().then(setCode);
     });
@@ -45,12 +39,11 @@ export default function App({ config }) {
   return (
     <div id="ide">
       <Toolbar
-        allLanguages={Object.keys(config)}
         language={language}
         setLanguage={setLanguage}
-        setShowDefPeg={setShowDefPeg}
+        analysisType={analysisType}
+        setAnalysisType={setAnalysisType}
       />
-
       <div id="panel-wrapper">
         <EditorPanel
           code={code}
@@ -67,11 +60,10 @@ export default function App({ config }) {
         />
         <Resizer />
         <PegPanel
+          analysisType={analysisType}
           ast={ast}
           language={language}
           highlighted={highlighted}
-          seman={seman}
-          showDefPeg={showDefPeg}
         />
       </div>
     </div>

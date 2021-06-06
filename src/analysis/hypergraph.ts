@@ -9,8 +9,6 @@ class Hypergraph<VData = any> {
 
   _max: Hypergraph.VertexId = 0;
 
-  constructor() {}
-
   get nodes() {
     const v = new Set<Hypergraph.Vertex<VData>>();
     for (const e of this.edges) {
@@ -89,24 +87,23 @@ class Hypergraph<VData = any> {
   }
 
   fromAst(ast: Ast) {
-    let self = this,
-      c: Hypergraph.VertexId = this._max;
-    function aux(ast: Ast) {
+    let c: Hypergraph.VertexId = this._max;
+    const aux = (ast: Ast) => {
       const root = ++c,
-        u = self._get(root);
+        u = this._get(root);
       // @ts-ignore
       if (ast.children) {
         // @ts-ignore
 
         const subs = ast.children.map(aux);
-        self.add([{ label: ast.type || "", sources: subs, target: root }]);
+        this.add([{ label: ast.type || "", sources: subs, target: root }]);
       } else {
         // @ts-ignore
         u.label = ast.text;
       }
       u.data = (<any>{ ast }) as VData; /** @oops */
       return root;
-    }
+    };
     aux(ast);
     this._max = c;
     return this;

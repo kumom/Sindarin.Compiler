@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import "./AstPanel.scss";
 import type { Ast } from "syntax/parser";
 import { FadeLoader } from "react-spinners";
 

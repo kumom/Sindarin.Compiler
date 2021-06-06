@@ -31,10 +31,10 @@ module.exports = {
     root: true,
     rules: {
         "curly": "error",
-        "no-unused-vars": "warn", 
+        "no-unused-vars": "warn",
         "react-hooks/rules-of-hooks": "error",
         "react-hooks/exhaustive-deps": "warn",
-        "react/prop-types": "warn", 
+        "react/prop-types": "warn",
     },
     settings: {
         react: {

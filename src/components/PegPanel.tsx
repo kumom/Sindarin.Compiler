@@ -1,29 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Hypergraph } from "analysis/hypergraph";
-import type { Ast } from "syntax/parser";
+import { Hypergraph, HypergraphView } from "analysis/hypergraph";
 import { FadeLoader } from "react-spinners";
+import config, { graphNodeThreshold } from "config";
 
-import "./PegPanel.scss";
-import "vis-network/styles/vis-network.css";
-
-interface PegPanelProps {
-  ast: Ast;
-  highlighted: Ast;
-  language: string;
-  seman: (peg: Hypergraph) => Hypergraph;
-  showDefPeg: boolean;
-}
-
-export default function PegPanel(props: PegPanelProps) {
-  const sizeThreshold = 1800;
+export default function PegPanel({ analysisType, ast, highlighted, language }) {
   const viewRef = useRef(null);
-
   const [numVertices, setNumVertices] = useState(0);
   const [rendering, setRendering] = useState(true);
-  const [semanPeg, setSemanPeg] = useState(null);
-  const [syntaxPeg, setSyntaxPeg] = useState(null);
-  const [syntaxView, setSyntaxView] = useState(null);
-  const [semanView, setSemanView] = useState(null);
+  const [astGraph, setAstGraph] = useState<Hypergraph>(null);
+  const astGraphView = useRef<HypergraphView>(null);
+  const lexicalGraphView = useRef<HypergraphView>(null);
+  const pointsToGraphView = useRef<HypergraphView>(null);
 
   function clearCanvas(): void {
     if (viewRef.current) {
@@ -32,71 +19,67 @@ export default function PegPanel(props: PegPanelProps) {
   }
 
   function setup() {
-    if (props.highlighted) {
-      setSyntaxPeg(new Hypergraph().fromAst(props.highlighted));
-    } else if (props.ast) {
-      setSyntaxPeg(new Hypergraph().fromAst(props.ast));
+    if (highlighted) {
+      setAstGraph(new Hypergraph().fromAst(highlighted));
+    } else if (ast) {
+      setAstGraph(new Hypergraph().fromAst(ast));
     } else {
       clearCanvas();
     }
   }
 
   useEffect(() => {
-    if (!syntaxPeg) {
+    if (!astGraph) {
       return;
     }
-    clearCanvas();
-    setNumVertices(syntaxPeg.vertices.size);
 
-    if (syntaxPeg.vertices.size > sizeThreshold) {
+    clearCanvas();
+    setNumVertices(astGraph.vertices.size);
+
+    if (astGraph.vertices.size > graphNodeThreshold) {
       setRendering(false);
     } else {
       if (viewRef.current) {
         setRendering(true);
-        setSyntaxView(
-          syntaxPeg.toVis().render(viewRef.current, () => {
-            setRendering(false);
-          })
-        );
-      }
 
-      // Other languages are not yet supported for semantic analysis
-      if (props.language === "TypeScript") {
-        setSemanPeg(props.seman(syntaxPeg));
+        astGraphView.current = astGraph.toVis().render(viewRef.current, () => {
+          setRendering(false);
+          // Other languages are not yet supported
+          if (language === "TypeScript") {
+            lexicalGraphView.current &&
+              astGraphView.current.removeOverlay(lexicalGraphView.current);
+            pointsToGraphView.current &&
+              astGraphView.current.removeOverlay(pointsToGraphView.current);
+
+            if (analysisType === "lexical") {
+              const lexicalScopeAnalysis = config[language].lexical;
+              const lexicalGraph = lexicalScopeAnalysis(astGraph);
+              lexicalGraphView.current = lexicalGraph.toVis();
+              astGraphView.current.overlay(lexicalGraphView.current);
+            }
+
+            if (analysisType === "pointsTo") {
+              const pointsToAnalysis = config[language].pointsTo;
+              const pointsToGraph = pointsToAnalysis(astGraph);
+              pointsToGraphView.current = pointsToGraph.toVis();
+              astGraphView.current.overlay(pointsToGraphView.current);
+            }
+          }
+        });
       }
     }
-  }, [syntaxPeg]);
-
-  useEffect(() => {
-    if (semanPeg) {
-      setSemanView(semanPeg.toVis());
-    }
-  }, [semanPeg]);
-
-  useEffect(() => {
-    if (semanView && syntaxView) {
-      if (props.showDefPeg) {
-        syntaxView.overlay(semanView);
-      } else {
-        syntaxView.removeOverlay(semanView);
-      }
-    }
-  }, [props.showDefPeg, semanView, syntaxView]);
+  }, [analysisType, astGraph, language]);
 
   useEffect(() => {
     setup();
-  }, [props.ast, props.highlighted]);
+  }, [ast, highlighted]);
 
   useEffect(() => {
     setup();
   }, []);
 
-  useEffect(() => {
-    console.log("rendering: ", rendering);
-  });
-
   return (
-    <div className="panel" id="peg-panel">
+    <div className="panel" id="graph-panel">
       <FadeLoader
         loading={rendering}
         css="position: absolute; top: 50%; left: 50%;"
@@ -104,14 +87,15 @@ export default function PegPanel(props: PegPanelProps) {
       <div
         style={{
           display:
-            numVertices <= sizeThreshold && !rendering ? "block" : "none",
+            numVertices <= graphNodeThreshold && !rendering ? "block" : "none",
         }}
         ref={viewRef}
-        id="peg-container"
+        id="graph-container"
       />
       <div
         style={{
-          display: numVertices > sizeThreshold && !rendering ? "block" : "none",
+          display:
+            numVertices > graphNodeThreshold && !rendering ? "block" : "none",
         }}>
         {`Too many vertices: ${numVertices}`}
       </div>

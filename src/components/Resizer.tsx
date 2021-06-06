@@ -1,5 +1,4 @@
 import React from "react";
-import "./Resizer.scss";
 
 export default class Resizer extends React.Component<{}, {}> {
   ref: any;
